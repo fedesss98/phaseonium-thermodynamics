@@ -5,10 +5,25 @@ from qutip.visualization import plot_fock_distribution, plot_wigner
 import os
 import json
 
+try:
+    import observables as obs
+except ModuleNotFoundError:
+    from thermophaseonium.utilities import observables as obs
+
+
+def density_matrix(rho, threshold=1e-6):
+    """
+    A proper density matrix must be Hermitian and have trace equal to 1.
+    This function checks for that.
+    """
+    return np.sum(rho.diag()) - 1 < threshold and rho.isherm
+
 
 class Ancilla(qt.Qobj):
     def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs)
+        if not density_matrix(self):
+            raise ValueError("Input is not a valid density matrix")
         self._alpha = np.sqrt(self[0, 0])
         self._beta = np.sqrt(self[1, 1])
         self._chi01 = self[0, 1]
@@ -73,6 +88,10 @@ class Ancilla(qt.Qobj):
     def gb(self):
         return np.real(self._beta ** 2 + self._chi12 * self._chi12.conjugate())
 
+    @property
+    def stable_temperature(self):
+        return - 1 / np.log(self.ga / self.gb)
+
     def save_parameters(self, save_id):
         parameters = {
             "alpha": str(self.alpha),
@@ -107,8 +126,11 @@ class Ancilla(qt.Qobj):
 
 
 class Cavity(qt.Qobj):
-    def __init__(self, *args, **kargs):
-        super().__init__(*args, **kargs)
+    def __init__(self, *args, **kwargs):
+        self.omega = kwargs.pop('omega', 1)
+        super().__init__(*args, **kwargs)
+        if not density_matrix(self):
+            raise ValueError("Input is not a valid density matrix")
         self.a = qt.destroy(self.shape[0])
         self.ad = self.a.dag()
 
@@ -120,12 +142,11 @@ class Cavity(qt.Qobj):
 
     @property
     def temperature(self):
-        """Temperature of the system"""
-        if not self.is_diagonal():
-            print("System is not thermal")
-        else:
-            z = 1 / self.diag()[0]
-            return - 1 / np.log(self.diag()[1] * z)
+        return obs.temperature(self)
+
+    @property
+    def entropy(self):
+        return obs.entropy(self)
 
     def is_diagonal(self):
         return qt.qdiags(self.diag(), 0) == self
