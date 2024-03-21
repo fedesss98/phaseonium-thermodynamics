@@ -22,7 +22,7 @@ ancilla_instance = Ancilla(qt.qeye(3))  # qt.qeye(3) creates a 3x3 identity matr
 ```
 
 ### Setting an Attribute
-
+Phaseonium parameters can be changed dynamically
 ```python
 ancilla_instance.chi01 = complex(1, 2)  # You can replace complex(1, 2) with the desired complex number
 ```
