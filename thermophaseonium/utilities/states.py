@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+# import cupy as cp
 import qutip as qt
 from qutip.visualization import plot_fock_distribution, plot_wigner
 import os
@@ -11,12 +12,15 @@ except ModuleNotFoundError:
     from thermophaseonium.utilities import observables as obs
 
 
-def density_matrix(rho, threshold=1e-6):
+def density_matrix(rho, hermitian=True, normalized=True, threshold=1e-6):
     """
     A proper density matrix must be Hermitian and have trace equal to 1.
     This function checks for that.
+    The code allows for non-hermitian or non-normalized matrices, but it is not recommended.
     """
-    return np.sum(rho.diag()) - 1 < threshold and rho.isherm
+    hermitianity = rho.isherm if hermitian else True
+    normality = np.sum(rho.diag()) - 1 < threshold if normalized else True
+    return hermitianity and normality
 
 
 class Ancilla(qt.Qobj):
@@ -25,7 +29,7 @@ class Ancilla(qt.Qobj):
         if not density_matrix(self):
             raise ValueError("Input is not a valid density matrix")
         self._alpha = np.sqrt(self[0, 0])
-        self._beta = np.sqrt(self[1, 1])
+        self._beta = np.sqrt(2 * self[1, 1])
         self._chi01 = self[0, 1]
         self._chi02 = self[0, 2]
         self._chi12 = self[1, 2]
@@ -86,7 +90,7 @@ class Ancilla(qt.Qobj):
 
     @property
     def gb(self):
-        return np.real(self._beta ** 2 + self._chi12 * self._chi12.conjugate())
+        return np.real(self._beta ** 2 + self._chi12 + self._chi12.conjugate())
 
     @property
     def stable_temperature(self):
@@ -128,8 +132,10 @@ class Ancilla(qt.Qobj):
 class Cavity(qt.Qobj):
     def __init__(self, *args, **kwargs):
         self.omega = kwargs.pop('omega', 1)
+        hermitian = kwargs.pop('hermitian', True)
+        normalized = kwargs.pop('normalized', True)
         super().__init__(*args, **kwargs)
-        if not density_matrix(self):
+        if not density_matrix(self, hermitian, normalized):
             raise ValueError("Input is not a valid density matrix")
         self.a = qt.destroy(self.shape[0])
         self.ad = self.a.dag()
@@ -147,6 +153,9 @@ class Cavity(qt.Qobj):
     @property
     def entropy(self):
         return obs.entropy(self)
+
+    # def to_cupy(self):
+    #     return cp.asarray(self.full())
 
     def is_diagonal(self):
         return qt.qdiags(self.diag(), 0) == self
