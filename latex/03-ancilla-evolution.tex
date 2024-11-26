@@ -1,0 +1,39 @@
+\renewenvironment{imported}{
+    % Local new commands here
+    % \newcommand{}{}
+    \newcommand{\s}{\hat{\sigma}}
+}{}
+
+\begin{imported}
+
+Using the standard collision model techniques (cfr. \cite{ciccarello_quantum-collision_2022}), we can cast the interaction term in Eq.~\ref{def:interaction} as $\hbar\Omega(A_+B_+ + A_-B_-)$, where
+\begin{equation}
+    A_+ = \ad,\;\,A_-=\a,\;\,B_+=\s_1^-+\s_2^-\,,\;\,B_-=\s_1^++\s_2^+\,.
+\end{equation}
+Next, we focus only on the first atom reaching the cavities, $\eta_0$, and its evolution from $\eta_0(0)$ to $\eta_0(M)$.
+Eventually we will set $M=2$ as in our case.
+The joint system at evolutionary step $n$ will be $\sigma_n = \eta_0(n)\otimes\rho_{n}(0)$.
+In fact, every cavity from $\rho_0$ to $\rho_M$ will not have evolved, so that they are all in evolutionary step $0$.
+In Interaction picture the joint system evolves according to $\sigma_{n+1}=\exp{-i\Delta tV_n}\,\sigma_n\exp{i\Delta tV_n}$.
+Expanding the exponential to second order in $\Delta t$ we have
+\begin{equation}
+    \Delta\sigma_{n+1} = -i\comm{H_0+V_n}{\sigma_n}+\Delta t^2\left( V_n\sigma_nV_n-\frac{1}{2}\acomm{V_n^2}{\sigma_n}\right)
+\end{equation}
+Dividing by $\Delta t$ and tracing off the ancilla (cavity) state $\rho_n(0)$ we can write directly the Master Equation for the evolution of the phaseonium state from $\eta_0(n)$ to $\eta_0(n+1)$ as
+\begin{align}
+    \frac{\Delta\eta_0(n+1)}{\Delta t} =& -i\comm{\hat{H}_S+\sum_\nu g_\nu\ev{A_\nu}B_\nu}{\eta_0(n)} \\
+    &+\sum_{\nu\mu}g_\nu g_\mu\Delta t\ev{A_\mu A_\nu}\left( B_\nu\eta_0(n)B_\mu-\frac{1}{2}\acomm{B_\mu B_\nu}{\eta_0(n)} \right),
+\end{align}
+with $\nu,\mu = +,-$.
+The Master Equation requires the calculation of expectation values with respect to the cavity density matrix $\rho_n(0)$. If we choose a common initial state $\rho_0\equiv\rho_n(0),\,n=0,\ldots M$, we can define
+\begin{align}
+    \ev{A_+} &= \Tr{\ad\rho_0}\equiv A^+_0,\\
+    \ev{A_-} &= \Tr{\a\rho_0}\equiv A^-_0,\\
+    \ev{A_+ A_+} &= \Tr{\ad\ad\rho_0}\equiv A^{++}_0,\\
+    \ev{A_- A_-} &= \Tr{\a\a\rho_0}\equiv A^{--}_0,\\
+    \ev{A_+ A_-} &= \Tr{\ad\a\rho_0}\equiv P_0,\\
+    \ev{A_- A_+} &= \Tr{\a\ad\rho_0}\equiv P_0 + 1.\\
+\end{align}
+
+
+\end{imported}

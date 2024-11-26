@@ -1,0 +1,179 @@
+\renewenvironment{imported}
+{
+% Phaseonium coherences
+\newcommand{\chidowntwo}{\bar{\chi}_{31}}
+\newcommand{\chidownone}{\bar{\chi}_{21}}
+\newcommand{\chiupone}{\chi_{21}}
+\newcommand{\chiuptwo}{\chi_{31}}
+\newcommand{\etadown}{\bar{\eta}_{32}}
+\renewcommand{\etaup}{\eta_{32}}
+\renewcommand{\a}{\alpha^2}
+\renewcommand{\b}{\frac{\beta^2}{2}}
+}
+{}
+
+\begin{imported}
+The unitary evolution operator is defined as:
+\begin{equation}
+    e^{i\theta\hat{V}_n} = \begin{pmatrix}
+        C & i\Sd & i\Sd \\
+        i\S & \frac{\Cp+\idd}{2}& \frac{\Cp-\idd}{2} \\
+        i\S & \frac{\Cp-\idd}{2} & \frac{\Cp+\idd}{2}
+    \end{pmatrix}
+\end{equation}
+
+Tracing out ancilla's degrees of freedom, we have
+
+\begin{align}
+    &\rho_{n+1} =
+    \left( \a\C\r + i\chidownone\Sd\r + i\chidowntwo\Sd\r \right)\C
+    \\ +&
+    \left(\etadown\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiupone\S\r \right)\frac{\Cp+\idd}{2}
+     +
+    \left(\etaup\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiuptwo\S\r \right)\frac{\Cp+\idd}{2}
+    \\ +&
+    \left( \b\frac{\Cp-\idd}{2}\r + \etaup\frac{\Cp+\idd}{2}\r + i\chiuptwo\S\r \right)\frac{\Cp-\idd}{2}
+    +
+    \left( \b\frac{\Cp-\idd}{2}\r + \etadown\frac{\Cp+\idd}{2}\r + i\chiupone\S\r \right)\frac{\Cp-\idd}{2}
+    \\ -&
+    i\left( \chidowntwo\frac{\Cp-\idd}{2}\r + \chidownone\frac{\Cp+\idd}{2}\r + i\a\S\r \right)\Sd 
+    -
+    i\left( \chidownone\frac{\Cp-\idd}{2}\r + \chidowntwo\frac{\Cp+\idd}{2}\r + i\a\S\r \right)\Sd 
+    \\ -&
+    i\left( \chiupone\C\r +i\b\Sd\r +i\etadown\Sd\r \right)\S
+    -
+    i\left( \chiuptwo\C\r +i\b\Sd\r +i\etaup\Sd\r \right)\S
+\end{align}
+
+and so
+\begin{align}
+    &\rho_{n+1} =
+    \left( \a\C\r + i\chidownone\Sd\r + i\chidowntwo\Sd\r \right)\C
+    \\ +&
+    \frac{1}{2}\left(\etadown\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiupone\S\r 
+     +
+    \etaup\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiuptwo\S\r \right)\Cp
+    \\ +&
+    \frac{1}{2}\left(\etadown\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiupone\S\r 
+     +
+    \etaup\frac{\Cp-\idd}{2}\r + \b\frac{\Cp+\idd}{2}\r +i\chiuptwo\S\r \right)\idd
+    \\ +&
+    \frac{1}{2}\left( \b\frac{\Cp-\idd}{2}\r + \etaup\frac{\Cp+\idd}{2}\r + i\chiuptwo\S\r
+    +
+    \b\frac{\Cp-\idd}{2}\r + \etadown\frac{\Cp+\idd}{2}\r + i\chiupone\S\r \right)\Cp
+    \\ -&
+    \frac{1}{2}\left( \b\frac{\Cp-\idd}{2}\r + \etaup\frac{\Cp+\idd}{2}\r + i\chiuptwo\S\r
+    +
+    \b\frac{\Cp-\idd}{2}\r + \etadown\frac{\Cp+\idd}{2}\r + i\chiupone\S\r \right)\idd
+    \\ -&
+    i\left( \chidowntwo\frac{\Cp-\idd}{2}\r + \chidownone\frac{\Cp+\idd}{2}\r + i\a\S\r 
+    +
+    \chidownone\frac{\Cp-\idd}{2}\r + \chidowntwo\frac{\Cp+\idd}{2}\r + i\a\S\r \right)\Sd 
+    \\ -&
+    i\left( \chiupone\C\r +i\b\Sd\r +i\etadown\Sd\r 
+    +
+    \chiuptwo\C\r +i\b\Sd\r +i\etaup\Sd\r \right)\S
+\end{align}
+
+\begin{align}
+    &\rho_{n+1} =
+    \left( \a\C\r + i\chidownone\Sd\r + i\chidowntwo\Sd\r \right)\C
+    \\ +&
+    \frac{1}{2}\left((\etadown+\etaup)\frac{\Cp-\idd}{2}\r + \beta^2\frac{\Cp+\idd}{2}\r +i(\chiupone+\chiuptwo)\S\r \right)\Cp
+    \\ +&
+    \frac{1}{2}\left((\etadown+\etaup)\frac{\Cp-\idd}{2}\r + \beta^2\frac{\Cp+\idd}{2}\r +i(\chiupone+\chiuptwo)\S\r \right)\idd
+    \\ +&
+    \frac{1}{2}\left( \beta^2\frac{\Cp-\idd}{2}\r + (\etadown+\etaup)\frac{\Cp+\idd}{2}\r +i(\chiupone+\chiuptwo)\S\r \right)\Cp
+    \\ -&
+    \frac{1}{2}\left( \beta^2\frac{\Cp-\idd}{2}\r + (\etadown+\etaup)\frac{\Cp+\idd}{2}\r +i(\chiupone+\chiuptwo)\S\r \right)\idd
+    \\ -&
+    i\left( (\chidowntwo+\chidownone)\frac{\Cp-\idd}{2}\r + (\chidownone+\chidowntwo)\frac{\Cp+\idd}{2}\r + 2i\a\S\r \right)\Sd 
+    \\ -&
+    i\left( \chiupone\C\r +i(\beta^2 + \etadown + \etaup)\Sd\r 
+    +
+    \chiuptwo\C\r \right)\S
+\end{align}
+
+\begin{align}
+    &\rho_{n+1} =
+    \left[ \a\C + i\chidownone\Sd + i\chidowntwo\Sd \right]\r\C
+    \\ +&
+    \frac{1}{2}\bigg[(\etadown+\etaup)\frac{\Cp-\idd}{2} + \beta^2\frac{\Cp+\idd}{2} +i(\chiupone+\chiuptwo)\S 
+    \\ &+
+    \beta^2\frac{\Cp-\idd}{2} + (\etadown+\etaup)\frac{\Cp+\idd}{2} +i(\chiupone+\chiuptwo)\S \bigg]\r\Cp
+    \\ +&
+    \frac{1}{2}\bigg[(\etadown+\etaup)\frac{\Cp-\idd}{2} + \beta^2\frac{\Cp+\idd}{2} +i(\chiupone+\chiuptwo)\S 
+    \\ &-
+    \beta^2\frac{\Cp-\idd}{2} - (\etadown+\etaup)\frac{\Cp+\idd}{2} -i(\chiupone+\chiuptwo)\S \bigg]\r\idd
+    \\ -&
+    i\left[ (\chidowntwo+\chidownone)\left(\frac{\Cp-\idd}{2} + \frac{\Cp+\idd}{2}\right) + 2i\a\S \right]\r\Sd 
+    \\ -&
+    i\left[ \chiupone\C +i(\beta^2 + \etadown + \etaup)\Sd + \chiuptwo\C \right]\r\S
+\end{align}
+
+\begin{align}
+    &\rho_{n+1} =
+    \left[ \a\C + i\chidownone\Sd + i\chidowntwo\Sd \right]\r\C
+    \\ +&
+    \frac{1}{2}\bigg[\frac{1}{2}\left((\etadown+\etaup) + \beta^2 + \beta^2 + (\etadown+\etaup)\right)\Cp + 2i(\chiupone+\chiuptwo)\S 
+    \\ &+
+    \frac{1}{2}\left((\etadown+\etaup) + \beta^2 - \beta^2 - (\etadown+\etaup)\right)\idd \bigg]\r\Cp
+    \\ +&
+    \frac{1}{2}\bigg[\frac{1}{2}\left((\etadown+\etaup)+\beta^2-\beta^2-(\etadown+\etaup)\right)\Cp
+    \\ &+
+    \frac{1}{2}\left(-(\etadown+\etaup)+\beta^2+\beta^2-(\etadown+\etaup)\right)\idd  \bigg]\r\idd
+    \\ -&
+    i\left[ (\chidowntwo+\chidownone)\Cp + 2i\a\S \right]\r\Sd 
+    \\ -&
+    i\left[ \chiupone\C +i(\beta^2 + \etadown + \etaup)\Sd + \chiuptwo\C \right]\r\S
+\end{align}
+
+\begin{align}
+    &\rho_{n+1} =
+    \left[ \a\C + i\chidownone\Sd + i\chidowntwo\Sd \right]\r\C
+    \\ +&
+    \frac{1}{2}\bigg[\left(\beta^2 + \etadown+\etaup\right)\Cp + 2i(\chiupone+\chiuptwo)\S 
+    \bigg]\r\Cp
+    \\ +&
+    \frac{1}{2}\bigg[\left(\beta^2-\etadown-\etaup\right)\idd  \bigg]\r\idd
+    \\ -&
+    i\left[ (\chidowntwo+\chidownone)\Cp + 2i\a\S \right]\r\Sd 
+    \\ -&
+    i\left[ \chiupone\C +i(\beta^2 + \etadown + \etaup)\Sd + \chiuptwo\C \right]\r\S
+\end{align}
+
+Now we call $B(\phi)\equiv(\beta^2+\etaup+\etadown)$ and $\bar{B}(\phi)\equiv(\beta^2-\etaup-\etadown)$:
+
+\begin{align}
+    \rho_{n+1} =&
+    \a\C\r\C 
+    +\frac{1}{2}B(\phi)\Cp\r\Cp
+    +B(\phi)\Sd\r\S 
+    +2\a\S\r\Sd 
+    +\frac{1}{2}\bar{B}(\phi)\idd\r\idd
+    \\
+    &+i(\chidownone+\chidowntwo)(\Sd\r\C - \Cp\r\Sd)
+    +i(\chiupone+\chiuptwo)(\S\r\Cp - \C\r\S)
+\end{align}
+
+With our previous notation $\etaup = \b e^{-i\phi}$ and $\etadown = \b e^{i\phi}$
+\begin{align}
+    B(\phi) =& \beta^2+\etaup+\etadown = \beta^2 + \b (e^{-i\phi} + e^{i\phi}) \\
+    &\,= \beta^2 (1 + 1/2(\cos\phi -i\sin\phi + \cos\phi +i\sin\phi)) = \beta^2(1+\cos\phi) 
+    \\
+    \bar{B}(\phi) =& \beta^2-\etaup-\etadown = \beta^2 - \b (e^{-i\phi} + e^{i\phi}) \\
+    &\,= \beta^2 (1 - 1/2(\cos\phi -i\sin\phi + \cos\phi +i\sin\phi)) = \beta^2(1 - \cos\phi) 
+\end{align}
+then $2\alpha^2 = \gamma_\alpha$ and $\beta^2(1+\cos\phi) = \gamma_\beta$.
+\\[10pt]
+
+
+% This is given by Kraus Operators:
+%\begin{align}
+%    \hat{E}_0 =& \sqrt{\frac{\beta^2}{2}(1-\cos\phi)}\idd \,, \\
+%    \hat{E}_1 =& \frac{\sqrt{\ga}}{2}\C \,, \\
+%    \hat{E}_2 =& \sqrt{\gamma_\alpha}\Sd \,, \\
+%    \hat{E}_3 =& \sqrt{\frac{\gamma_\beta}{2}}\Cp \,, \\
+%    \hat{E}_4 =& \sqrt{\gamma_\beta}\S \,,\\
+%\end{align}
+\end{imported}

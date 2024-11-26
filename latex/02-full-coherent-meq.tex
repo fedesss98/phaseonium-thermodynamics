@@ -1,0 +1,36 @@
+\renewenvironment{imported}{
+% Local new commands here
+% \newcommand{}{}
+}
+{}
+
+
+Neglecting terms of the order $\Delta t^3$ ($\theta^3$) and higher we have:
+
+\begin{align}
+    \rho_{n+1} =&
+    \alpha^2\left(\r - \tt\r\a\ad - \tt\a\ad\r \right)
+    +2\alpha^2\left( \tt\ad\r\a \right)\\
+    &+\frac{\beta^2}{2}(1+\cos\phi)\left( \r -\tt\r\ad\a -\tt\ad\a\r \right)   +\beta^2(1+\cos\phi)\left( \tt\a\r\ad \right) \\
+    &+i(\bar{\chi}_{21}+\bar{\chi}_{31})(\theta\a\r\idd - \theta\idd\r\a) \\
+    &+i(\chi_{21}+\chi_{31})(\theta\ad\r\idd - \theta\idd\r\ad) \\
+    &+\frac{\beta^2}{2}(1 - \cos\phi)\r
+\end{align}
+and so
+\begin{align}
+    \rho_{n+1} =&
+    \alpha^2\left( - \tt\r\a\ad - \tt\a\ad\r 
+    +2\tt\ad\r\a \right) +\alpha^2\r \\
+    &+\frac{\beta^2}{2}(1+\cos\phi)\left( -\tt\r\ad\a -\tt\ad\a\r + 2\tt\a\r\ad \right) +\frac{\beta^2}{2}(1+\cos\phi)\r\\
+    &+i\theta(\bar{\chi}_{21}+\bar{\chi}_{31})(\a\r - \r\a) \\
+    &+i\theta(\chi_{21}+\chi_{31})(\ad\r - \r\ad) \\
+    &+\frac{\beta^2}{2}(1 - \cos\phi)\r
+\end{align}
+and this is
+\begin{align}
+    \rho_{n+1} =&
+    2\alpha^2\tt\left(\ad\r\a -\frac{1}{2}\acomm{\a\ad}{\r} \right) \\
+    &+\beta^2(1+\cos\phi)\tt\left(\a\r\ad -\frac{1}{2}\acomm{\ad\a}{\r} \right) \\
+    &+i\theta\comm{(\bar{\chi}_{21}+\bar{\chi}_{31})\a + (\chi_{21}+\chi_{31})\ad}{\r} \\
+    &+\left( \alpha^2 +\frac{\beta^2}{2}(1+\cos\phi) + \frac{\beta^2}{2}(1 - \cos\phi) \right)\r
+\end{align}
