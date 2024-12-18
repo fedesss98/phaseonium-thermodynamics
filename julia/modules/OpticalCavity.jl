@@ -2,23 +2,35 @@
 Variables associated to an Optical Cavity
 """
 module OpticalCavity
-
 export Cavity
 
+"""
+Represents an Optical Cavity with its physical properties
+"""
 mutable struct Cavity
-    mass::Float32
-    surface::Float32
-    length::Float32
-    α::Float32
+    mass::Float64
+    surface::Float64
+    length::Float64
+    α::Float64
+    acceleration::Float64
+    external_force::Float64
 
-    acceleration::Float32
-    external_force::Float32
+    # Inner constructor for full initialization
+    function Cavity(mass::Real, surface::Real, length::Real, α::Real, 
+                    acceleration::Real = 0.0, external_force::Real = 0.0)
+        new(
+            convert(Float64, mass), 
+            convert(Float64, surface), 
+            convert(Float64, length), 
+            convert(Float64, α), 
+            convert(Float64, acceleration), 
+            convert(Float64, external_force)
+        )
+    end
 end
 
-"""
-Constructor to initialize a static Cavity
-"""
-Cavity(m::Real, s::Real, l::Real, α::Real, f::Real) = Cavity(Float32(m), Float32(s), Float32(l), Float32(α), Float32(0.0), Float32(f))
+# Convenience constructor for static cavity
+Cavity(m::Real, s::Real, l::Real, α::Real, f::Real) = 
+    Cavity(m, s, l, α, 0.0, f)
 
-
-end
+end  # module

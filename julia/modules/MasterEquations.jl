@@ -24,13 +24,34 @@ function D(M, ρ)
 end
 
 
-function meqevolve(ρ, kraus, timesteps)
-    Δρ = zeros(size(ρ))
-    for t in 1:timesteps
-        for Ek in kraus[2:length(kraus)]
-            Δρ += D(Ek, ρ)
-        end
-        ρ += Δρ
+function master_equation(ρ, bosonic_operators, ga, gb)
+    cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc = bosonic_operators
+
+    # Dissipators
+    d_cc_2ssd = D(cc_2ssd, ρ)
+    d_cs_scp = D(cs_scp, ρ)
+    first_line = 0.5 * d_cc_2ssd + d_cs_scp
+
+    d_cpcp_2sds = D(cpcp_2sds, ρ)
+    d_cpsd_sdc = D(cpsd_sdc, ρ)
+    second_line = 0.5 * d_cpcp_2sds + d_cpsd_sdc
+    
+    return ga * first_line + gb * second_line
+end
+
+
+function meqevolve(ρ, bosonic_operators, ga, gb, timesteps)
+    # Tensor Bosonic Operators
+    c, cp, s, sd = bosonic_operators
+
+    cc_2ssd = kron(c, c) - 2 * kron(s, sd)
+    cs_scp = kron(c, s) + kron(s, cp)
+    cpcp_2sds = kron(cp, cp) - 2 * kron(sd, s)
+    cpsd_sdc = kron(cp, sd) + kron(sd, c)
+    bosonic_operators = [cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc]
+    
+    for _ in 1:timesteps
+        ρ += master_equation(ρ, bosonic_operators, ga, gb)
     end
     return ρ
 end
@@ -105,6 +126,45 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity)
     #=cavity.length = l=#
     cavity.acceleration = a
     return ρ_e, cavity
+end
+
+
+function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
+    function update_a(pressure, cavity)
+        (pressure * cavity.surface - cavity.external_force ) / cavity.mass
+    end
+    
+    opa, opad = jumps
+
+    c1, c2 = cavities
+    α0 = c1.α
+
+    # a1 = c1.acceleration
+    # a2 = c2.acceleration
+    a1 = 0  # Cavities are fixed until this time
+    a2 = 0
+    
+    for t in 0:Δt:timesteps
+        # Move the cavity wall
+        c1.length += 0.5 * a1 * Δt^2
+        c2.length += 0.5 * a2 * Δt^2
+        # Update energies
+        h1 = _free_hamiltonian(c1.length, α0, opa, opad)
+        h2 = _free_hamiltonian(c2.length, α0, opa, opad)
+        h = kron(h1, h2)
+        # Evolve the System
+        U = exp(-im * h)
+        ρ = U * ρ * U'
+        # Update pressure and acceleration
+        p1 = pressure(ρ, α0, c1.length, c1.surface, t)
+        p2 = pressure(ρ, α0, c2.length, c2.surface, t)
+        a1 = update_a(p1, c1)
+        a2 = update_a(p2, c2)
+    end   
+  
+    c1.acceleration = a1
+    c2.acceleration = a2
+    return ρ, c1, c2
 end
 
 end

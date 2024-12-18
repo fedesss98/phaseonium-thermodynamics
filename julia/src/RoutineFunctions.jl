@@ -4,6 +4,7 @@ Various utility functions to work with interacting Cavities-Phaseoniums
 
 
 using LinearAlgebra
+using QuantumOptics
 using SuiteSparseGraphBLAS
 
 function thermalstate(ndims, ω, T; plotdiag::Bool=false)
@@ -24,8 +25,13 @@ function thermalstate(ndims, ω, T; plotdiag::Bool=false)
 end
 
 
-function identity(ndims)
+function idd(ndims)
     Diagonal(ones(ndims))
+end
+
+
+function qt_ptrace(sys, trace_out)
+    QuantumOptics.ptrace(sys, trace_out)
 end
 
 
@@ -96,20 +102,30 @@ function checkdensity(mat::Matrix)
     return ispositive(mat) && isnormal(mat) && canbecut(mat)
 end
 
-
-function partial_trace(ρ, ndims, subsystem)
-    # Reshape the density matrix into a 4D tensor
-    rho_tensor = reshape(ρ, (ndims, ndims, ndims, ndims))
-
-    if subsystem == 1
-        # Take the partial trace over s2
-        rho_subsystem = [tr(rho_tensor[i, :, j, :]) for i in 1:ndims, j in 1:ndims]
-    elseif subsystem == 2
-        # Take the partial trace over s1
-        rho_subsystem = [tr(rho_tensor[:, i, :, j]) for i in 1:ndims, j in 1:ndims]
+"""
+Found by Copilot
+"""
+function partial_trace(rho::Matrix{Float64}, dims::Tuple{Int, Int}, keep::Int)
+    dim1, dim2 = dims
+    if keep == 1
+        y = reshape(sum(reshape(rho, dim1, dim2, dim1, dim2), dims=(1, 3)), dim1, dim1)
+    elseif keep == 2
+        y = reshape(sum(reshape(rho, dim1, dim2, dim1, dim2), dims=(2, 4)), dim2, dim2)
     else
-        error("Invalid subsystem. Choose either '1' or '2'.")
+        throw(ArgumentError("The 'keep' argument must be 1 or 2."))
     end
+    return y / tr(y)
+end
 
-    return rho_subsystem
+
+mutable struct StrokeState{T<:Union{Real,Complex}}
+    ρ::Matrix{T}
+    c₁::Cavity
+    c₂::Cavity
+    ρ₁_evolution::Vector{Matrix{T}}
+    ρ₂_evolution::Vector{Matrix{T}}
+    c₁_evolution::Vector{Float64}
+    c₂_evolution::Vector{Float64}
+
+    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, c2, [], [], [], [])
 end

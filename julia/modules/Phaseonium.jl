@@ -39,15 +39,16 @@ end
 """
 Find the parameter ϕ that gives the Apparent Temperature specified, given α
 """
-function phi_from_temperature(T, α)
+function phi_from_temperature(T, α, ω)
+    T = T * ω
     return arccos(2*α^2 * exp(1/T) / (1-α^2) - 1)
 end
 
 """
 Find the parameter α that gives the Apparent Temperature specified, given ϕ
 """
-function alpha_from_temperature(T, ϕ)
-    factor = (1+cos(ϕ)) * exp(-1/T) / (2 + (1+cos(ϕ)) * exp(-1/T)) 
+function alpha_from_temperature(T, ϕ, ω)
+    factor = (1+cos(ϕ)) / (2 * exp(ω/T) + 1 + cos(ϕ)) 
     return sqrt(factor)
 end
 
