@@ -234,7 +234,7 @@ function run_cycle(options)
     end
 
     # Save state
-    serialize("state_cascade_nonthermal_$(options.cycles)cycles", state)
+    serialize("$(ARGS[1])\\state_cascade_nonthermal_$(options.cycles)cycles", state)
 end
 
 function main()
