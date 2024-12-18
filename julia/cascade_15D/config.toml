@@ -6,7 +6,7 @@ title = "Simulation 1 - 15D"
 dims = 15
 omega = 1.0
 dt = 0.01
-cycles = 12
+cycles = 4
 T_initial = 1.0
 
 [phaseonium]
@@ -32,5 +32,6 @@ isochore = 20
 adiabatic = 10
 
 [loading]
-load_state = false
-filename = ""
+load_state = true
+filename = "state_cascade_nonthermal_12cycles"
+past_cycles = 12

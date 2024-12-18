@@ -37,7 +37,7 @@ end
 Gives the expected value of photon's number in the Cavity
 """
 function avg_number(state, ω)
-    dims = dimension(state)[1]
+    dims = size(state)[1]
     N = Diagonal(0:dims-1)
 
     return tr(state * N)

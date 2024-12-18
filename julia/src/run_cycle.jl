@@ -54,6 +54,7 @@ end
 @option struct LoadingOptions
     load_state::Bool = false
     filename::String = ""
+    past_cycles::Int = 0
 end
 
 @option struct SimOptions
@@ -73,7 +74,7 @@ end
     
 
 function read_configuration(dir)
-    from_toml(SimOptions, dir * "\\config.toml")
+    from_toml(SimOptions, dir * "/config.toml")
 end
 
 function create_cavity(cavity_options)
@@ -131,11 +132,11 @@ function create_phaseoniums(options, ω)
     return (ga_h, gb_h, bosonic_h), (ga_c, gb_c, bosonic_c)
 end
 
-function load_or_create_state(options, ρ, cavity)
+function load_or_create_state(options, ρ, cavity; dir=ARGS[1])
     if options.load_state
-        return deserialize(options.filename)
+        return deserialize(dir * "/" * options.filename), options.past_cycles
     else
-        return StrokeState(Matrix(ρ), cavity, cavity)
+        return StrokeState(Matrix(ρ), cavity, cavity), 0
     end
 end
 
@@ -223,10 +224,10 @@ function run_cycle(options)
 
     # State object comprising the cavities parameters and density matrices, 
     # as well as their temporal evolution
-    state = load_or_create_state(options.loading, ρ_tot, cavity)
+    state, past_cycles = load_or_create_state(options.loading, ρ_tot, cavity)
 
     for t in 1:options.cycles
-        println("Cycle $t")
+        println("Cycle $(t + past_cycles)")
         state = cycle(
             state, 
             options.stroke_time.isochore, options.samplings.isochore, heat_params, cool_params,
@@ -234,7 +235,7 @@ function run_cycle(options)
     end
 
     # Save state
-    serialize("$(ARGS[1])\\state_cascade_nonthermal_$(options.cycles)cycles", state)
+    serialize("$(ARGS[1])/state_cascade_nonthermal_$(options.cycles + past_cycles)cycles", state)
 end
 
 function main()
