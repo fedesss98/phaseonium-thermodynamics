@@ -1,5 +1,5 @@
 include("BosonicOperators.jl")
-
+include("Measurements.jl")
 include("OpticalCavity.jl")
 
 """
@@ -8,8 +8,12 @@ Evolution of the System
 module MasterEquations
 
 using LinearAlgebra
+using SparseArrays
+using Expokit
+
 using ..OpticalCavity
 using ..BosonicOperators
+using ..Measurements
 
 export meqevolve, krausevolve
 
@@ -90,14 +94,14 @@ function approxevolve(ρ, jumps, rates, timesteps)
 end
 
 
-function _free_hamiltonian(l, α0, a, ad)
-   1/2 * α0/l * ad*a
+function _free_hamiltonian(ω, n)
+   0.5 * ω * n
 end
 
 
 function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity)
     ndims = size(ρ, 1)
-    opa, opad = jumps
+    opa, opad = convert(Matrix{Float32}, jumps[1]), convert(Matrix{Float32}, jumps[2])
 
     l0 = cavity.length
     α0 = cavity.α
@@ -114,7 +118,7 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity)
         # Update energies
         h = _free_hamiltonian(cavity.length, α0, opa, opad)
         # Evolve the System
-        U = exp(-im * h)
+        U = sparse(exp(-im * h))
         ρ_e = U * ρ_e * U'
         # Update pressure and acceleration
         a = pressure(ρ_e, α0, cavity.length, cavity.surface, t)*cavity.surface
@@ -135,6 +139,25 @@ function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
     end
     
     opa, opad = jumps
+    # Reduce precision
+    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
+    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
+    # Operators must be defined on one subspace
+    dims = Int(sqrt(size(ρ)[1]))
+    idd = Measurements._idd(dims)
+    Δt² = Δt^2  
+
+    # Pressure Operator
+    # Decomposed in three parts (constant and rotating)
+    n = opad * opa
+    π_a = opa * opa
+    π_ad = opad * opad
+
+    # Preallocate variables with reduce precision
+    π₁, π₂ = spzeros(ComplexF32, size(n)...), spzeros(ComplexF32, size(n)...)
+    h = spzeros(Float32, size(ρ)...)
+    U = spzeros(ComplexF32, size(ρ)...)
+    ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert real sparse matrix to complex sparse
 
     c1, c2 = cavities
     α0 = c1.α
@@ -144,27 +167,72 @@ function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
     a1 = 0  # Cavities are fixed until this time
     a2 = 0
     
-    for t in 0:Δt:timesteps
+    for t_idx in 0:timesteps
+        t = t_idx * Δt
         # Move the cavity wall
-        c1.length += 0.5 * a1 * Δt^2
-        c2.length += 0.5 * a2 * Δt^2
+        c1.length += 0.5 * a1 * Δt²
+        c2.length += 0.5 * a2 * Δt²
         # Update energies
-        h1 = _free_hamiltonian(c1.length, α0, opa, opad)
-        h2 = _free_hamiltonian(c2.length, α0, opa, opad)
-        h = kron(h1, h2)
+        ω₁ = α0 / c1.length
+        ω₂ = α0 / c2.length
+        h1 = _free_hamiltonian(ω₁, n)
+        h2 = _free_hamiltonian(ω₂, n)
+        kron!(h, h1, h2)
         # Evolve the System
-        U = exp(-im * h)
-        ρ = U * ρ * U'
+        U .= padm(-im .* h)
+        mul!(ρ, U, ρ)
+        mul!(ρ, ρ, U')
         # Update pressure and acceleration
-        p1 = pressure(ρ, α0, c1.length, c1.surface, t)
-        p2 = pressure(ρ, α0, c2.length, c2.surface, t)
-        a1 = update_a(p1, c1)
-        a2 = update_a(p2, c2)
-    end   
+        @. π₁ = (2 * n + 1)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
+        @. π₂ = (2 * n + 1)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
+        println(typeof(π₂))
+        p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
+        p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
+        a1 = (p1 * c1.surface - c1.external_force) / c1.mass
+        a2 = (p2 * c2.surface - c2.external_force) / c2.mass
+    end
   
     c1.acceleration = a1
     c2.acceleration = a2
+
     return ρ, c1, c2
 end
 
 end
+
+using BenchmarkTools
+using LinearAlgebra
+using Expokit
+using .OpticalCavity
+using .BosonicOperators
+using .MasterEquations
+include("../src/RoutineFunctions.jl")
+
+
+function benchmark_adiabatic_stroke(ρ, cavities, Δt, timesteps, jumps)
+    result = MasterEquations.adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
+    return 0
+end
+
+
+println("MAIN")
+function stroke_params(time)
+    ndims = 20
+    timesteps = time 
+    Δt = 1e-2
+
+    ρt = thermalstate(ndims, 1.0, 1.5)
+    ρ = sparse(kron(ρt, ρt))
+
+    c = OpticalCavity.Cavity(1.0, 1.0, 1.0, π, 0.0, 0.5)
+    cavities = [c, c]
+
+    a = BosonicOperators.destroy(ndims, true)
+    ad = BosonicOperators.create(ndims, true)
+    jumps = [a, ad]
+    
+    return ρ, cavities, Δt, timesteps, jumps
+end
+
+#=@benchmark benchmark_adiabatic_stroke($stroke_params()...)=#
+

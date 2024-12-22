@@ -75,19 +75,27 @@ function _trace(A, B)
 end
 
 
-function pressure(ρ, α, l, S, t)
-    ndims::Int64 = size(ρ, 1)
-    a = destroy(ndims)
-    ad = create(ndims)
+function _idd(ndims)
+    Diagonal(ones(ndims))
+end
+
+
+function pressure(ρ, π, idd, α, l, S; s=0)
 
     coefficient = α / (2*l^2*S)
 
     ω = α / l
-    expval = _trace(ad*a, ρ) 
-    expval += _trace(a*ad, ρ) 
-    expval -= _trace(a*a, ρ) * exp(-2*im*ω*t)
-    expval -= _trace(ad*ad, ρ) * exp(2*im*ω*t)
-    return real(coefficient * expval)
+    
+    # Pressure Operator
+    if s == 1
+        op = kron(π, idd)
+    elseif s == 2
+        op = kron(idd, π)
+    else
+        op = π
+    end
+
+    real(coefficient * _trace(ρ, op))
 end
 
 end
