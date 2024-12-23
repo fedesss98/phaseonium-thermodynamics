@@ -53,6 +53,16 @@ function phaseonium_stroke_2(ρ, time, bosonic_operators, ga, gb; sampling_steps
     systems = Vector{typeof(ρ)}(undef, sampling_steps + 1)
     systems[1] = ρ  # Initialize with the input state
 
+    # Tensor Bosonic Operators
+    c, cp, s, sd = [convert(Matrix{ComplexF32}, b) for b in bosonic_operators]
+
+    cc_2ssd = kron(c, c) - 2 * kron(s, sd)
+    cs_scp = kron(c, s) + kron(s, cp)
+    cpcp_2sds = kron(cp, cp) - 2 * kron(sd, s)
+    cpsd_sdc = kron(cp, sd) + kron(sd, c)
+    bosonic_operators = [cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc]
+    
+    # Temporal loop
     iter = verbose > 2 ? ProgressBar(1:sampling_steps) : 1:sampling_steps
     for i in iter
         ρ = MasterEquations.meqevolve(ρ, bosonic_operators, ga, gb, silent_evolution_time)

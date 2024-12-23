@@ -27,35 +27,39 @@ function D(M, ρ)
     return sandwich - 1/2 * commutator
 end
 
+function D!(sandwich, comm1, comm2, M, ρ)
+    """Dissipator Operator appearing in the Master Equation"""
+    mul!(sandwich, M, ρ)
+    mul!(sandwich, sandwich, M')
+    mul!(comm1, M', M)
+    mul!(comm1, comm1, ρ)
+    mul!(comm2, ρ, M')
+    mul!(comm2, comm2, M)
+    return sandwich .- 0.5 .* (comm1 .+ comm2)
+end
 
 function master_equation(ρ, bosonic_operators, ga, gb)
     cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc = bosonic_operators
 
     # Dissipators
-    d_cc_2ssd = D(cc_2ssd, ρ)
-    d_cs_scp = D(cs_scp, ρ)
-    first_line = 0.5 * d_cc_2ssd + d_cs_scp
+    sandwich, comm1, comm2 = similar(ρ), similar(ρ), similar(ρ) 
+    first_line, second_line = similar(ρ), similar(ρ)
 
-    d_cpcp_2sds = D(cpcp_2sds, ρ)
-    d_cpsd_sdc = D(cpsd_sdc, ρ)
-    second_line = 0.5 * d_cpcp_2sds + d_cpsd_sdc
+    d_cc_2ssd = D!(sandwich, comm1, comm2, cc_2ssd, ρ)
+    d_cs_scp = D!(sandwich, comm1, comm2, cs_scp, ρ)
+    first_line .= 0.5 .* d_cc_2ssd .+ d_cs_scp
+
+    d_cpcp_2sds = D!(sandwich, comm1, comm2, cpcp_2sds, ρ)
+    d_cpsd_sdc = D!(sandwich, comm1, comm2, cpsd_sdc, ρ)
+    second_line .= 0.5 .* d_cpcp_2sds .+ d_cpsd_sdc
     
-    return ga * first_line + gb * second_line
+    return ga .* first_line .+ gb .* second_line
 end
 
 
 function meqevolve(ρ, bosonic_operators, ga, gb, timesteps)
-    # Tensor Bosonic Operators
-    c, cp, s, sd = bosonic_operators
-
-    cc_2ssd = kron(c, c) - 2 * kron(s, sd)
-    cs_scp = kron(c, s) + kron(s, cp)
-    cpcp_2sds = kron(cp, cp) - 2 * kron(sd, s)
-    cpsd_sdc = kron(cp, sd) + kron(sd, c)
-    bosonic_operators = [cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc]
-    
     for _ in 1:timesteps
-        ρ += master_equation(ρ, bosonic_operators, ga, gb)
+        ρ .+= master_equation(ρ, bosonic_operators, ga, gb)
     end
     return ρ
 end
