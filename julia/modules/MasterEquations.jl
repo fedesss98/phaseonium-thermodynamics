@@ -133,31 +133,12 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity)
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
+function adiabaticevolve_2(ρ, cavities, Δt, timesteps, allocated_op, π_parts)
     function update_a(pressure, cavity)
         (pressure * cavity.surface - cavity.external_force ) / cavity.mass
     end
     
-    opa, opad = jumps
-    # Reduce precision
-    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
-    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
-    # Operators must be defined on one subspace
-    dims = Int(sqrt(size(ρ)[1]))
-    idd = Measurements._idd(dims)
     Δt² = Δt^2  
-
-    # Pressure Operator
-    # Decomposed in three parts (constant and rotating)
-    n = opad * opa
-    π_a = opa * opa
-    π_ad = opad * opad
-
-    # Preallocate variables with reduce precision
-    π₁, π₂ = spzeros(ComplexF32, size(n)...), spzeros(ComplexF32, size(n)...)
-    h = spzeros(Float32, size(ρ)...)
-    U = spzeros(ComplexF32, size(ρ)...)
-    ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert real sparse matrix to complex sparse
 
     c1, c2 = cavities
     α0 = c1.α
@@ -166,6 +147,11 @@ function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
     # a2 = c2.acceleration
     a1 = 0  # Cavities are fixed until this time
     a2 = 0
+
+    # Preallocated Operators
+    h, U, π₁, π₂ = allocated_op
+    # Constant parts of Pressure Operator
+    n, π_a, π_ad = π_parts
     
     for t_idx in 0:timesteps
         t = t_idx * Δt

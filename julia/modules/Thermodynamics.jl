@@ -41,6 +41,9 @@ function phaseonium_stroke(ρ, time, kraus; sampling_steps=10, verbose=1)
     return systems
 end
 
+"""
+Implement the Phaseonium thermalization stroke for two cavities
+"""
 function phaseonium_stroke_2(ρ, time, bosonic_operators, ga, gb; sampling_steps=10, verbose=1)
     if verbose > 0
         println("Isochoric Stroke")
@@ -74,22 +77,43 @@ function adiabatic_stroke(ρ, time::Int64, Δt::Float64, jumps, cavity; sampling
     if verbose > 0
         println("Adiabatic Stroke")
     end
+
     silent_evolution_time = div(time, sampling_steps)
 
-    global ρ_i = ρ
-    systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps + 1)
-    systems[1] = ρ_i
+    # Preallocate variables with reduced precision
+    ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert to complex sparse
+    systems = Vector{Matrix{ComplexF32}}(undef, sampling_steps + 1)
+    systems[1] = ρ
     
     cavity_lengths = [cavity.length for _ in 0:sampling_steps]
 
+    a, ad = jumps
+    # Reduce precision
+    a = convert(SparseMatrixCSC{Float32, Int64}, a)
+    ad = convert(SparseMatrixCSC{Float32, Int64}, ad)
+
+    # Pressure Operator
+    # Decomposed in three parts (constant and rotating)
+    n = ad * a
+    π_a = a * a
+    π_ad = ad * ad
+    π_parts = (n, π_a, π_ad)
+
+    # Preallocate variables with reduce precision
+    π = spzeros(ComplexF32, size(n)...)
+    h = spzeros(Float32, size(ρ)...)
+    U = spzeros(ComplexF32, size(ρ)...)
+    
+    alloc = (h, U, π)
+
+    # Temporal loop
     verbose > 2 ? iter = ProgressBar(1:sampling_time) : iter=1:sampling_steps
     for i in iter
-        ρ_f, cavity = MasterEquations.adiabaticevolve(
-            ρ_i, Δt, silent_evolution_time, jumps, cavity
+        ρ, cavity = MasterEquations.adiabaticevolve(
+            ρ, Δt, silent_evolution_time, alloc, π_parts, cavity
         )
-        systems[i+1] = ρ_f
+        systems[i+1] = ρ
         cavity_lengths[i+1] = cavity.length
-        global ρ_i = ρ_f
     end
 
     if verbose > 1
@@ -111,20 +135,44 @@ function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; samp
     end
     silent_evolution_time = div(time, sampling_steps)
 
-    systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps + 1)
+    # Preallocate variables with reduced precision
+    ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert to complex sparse
+    systems = Vector{Matrix{ComplexF32}}(undef, sampling_steps + 1)
     systems[1] = ρ
     
     c1, c2 = cavities
     cavity_lengths = [[c1.length, c2.length] for _ in 0:sampling_steps]
+
+    a, ad = jumps
+    # Reduce precision
+    a = convert(SparseMatrixCSC{Float32, Int64}, a)
+    ad = convert(SparseMatrixCSC{Float32, Int64}, ad)
+
+    # Pressure Operator
+    # Decomposed in three parts (constant and rotating)
+    n = ad * a
+    π_a = a * a
+    π_ad = ad * ad
+    π_parts = (n, π_a, π_ad)
+
+    # Preallocate variables with reduce precision
+    π₁, π₂ = spzeros(ComplexF32, size(n)...), spzeros(ComplexF32, size(n)...)
+    h = spzeros(Float32, size(ρ)...)
+    U = spzeros(ComplexF32, size(ρ)...)
+    alloc = (h, U, π₁, π₂)
+
+    # Temporal loop
     verbose > 2 ? iter = ProgressBar(1:sampling_steps) : iter=1:sampling_steps
     for i in iter
         ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
-            ρ, [c1, c2], Δt, silent_evolution_time, jumps
+            ρ, [c1, c2], Δt, silent_evolution_time, alloc, π_parts
         )
         systems[i+1] = ρ
         cavity_lengths[i+1] = [c1.length, c2.length]
     end
+
     if verbose > 1
+        # Show evolution of cavities' lenghts
         c1_lengths = [l1 for (l1, l2) in cavity_lengths]
         c2_lengths = [l2 for (l1, l2) in cavity_lengths]
         g = plot(
