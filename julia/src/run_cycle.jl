@@ -132,11 +132,11 @@ function create_phaseoniums(options, ω)
     return (ga_h, gb_h, bosonic_h), (ga_c, gb_c, bosonic_c)
 end
 
-function load_or_create_state(options, ρ, cavity; dir=ARGS[1])
+function load_or_create_state(options, ρ, cavity1, cavity2; dir=ARGS[1])
     if options.load_state
         return deserialize(dir * "/" * options.filename), options.past_cycles
     else
-        return StrokeState(Matrix(ρ), cavity, cavity), 0
+        return StrokeState(Matrix(ρ), cavity1, cavity2), 0
     end
 end
 
@@ -231,7 +231,8 @@ end
 
 
 function run_cycle(options)
-    cavity = create_cavity(options.cavity)
+    cavity1 = create_cavity(options.cavity)
+    cavity2 = create_cavity(options.cavity)
     ω = options.cavity.alpha / options.cavity.length
     
     # Joint system
@@ -245,7 +246,7 @@ function run_cycle(options)
 
     # State object comprising the cavities parameters and density matrices, 
     # as well as their temporal evolution
-    state, past_cycles = load_or_create_state(options.loading, ρ_tot, cavity)
+    state, past_cycles = load_or_create_state(options.loading, ρ_tot, cavity1, cavity2)
 
     for t in 1:options.cycles
         println("Cycle $(t + past_cycles)")
