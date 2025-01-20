@@ -24,59 +24,68 @@ function D(M, ρ)
     """Dissipator Operator appearing in the Master Equation"""
     sandwich = M * ρ * M'
     commutator = M' * M * ρ + ρ * M' * M
-    return sandwich - 1/2 * commutator
+    return sandwich - 0.5 * commutator
 end
 
 
-function master_equation(ρ, bosonic_operators, ga, gb)
+function master_equation_2(ρ, bosonic_operators, ga, gb, ndims)
     cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc = bosonic_operators
-
+    first_line, second_line = Matrix{ComplexF64}(undef, ndims, ndims), Matrix{ComplexF64}(undef, ndims, ndims)
     # Dissipators
-    d_cc_2ssd = D(cc_2ssd, ρ)
-    d_cs_scp = D(cs_scp, ρ)
-    first_line = 0.5 * d_cc_2ssd + d_cs_scp
+    # d_cc_2ssd = D(cc_2ssd, ρ)
+    # d_cs_scp = D(cs_scp, ρ)
+    first_line = 0.5 * D(cc_2ssd, ρ) + D(cs_scp, ρ)
 
-    d_cpcp_2sds = D(cpcp_2sds, ρ)
-    d_cpsd_sdc = D(cpsd_sdc, ρ)
-    second_line = 0.5 * d_cpcp_2sds + d_cpsd_sdc
+    # d_cpcp_2sds = D(cpcp_2sds, ρ)
+    # d_cpsd_sdc = D(cpsd_sdc, ρ)
+    second_line = 0.5 * D(cpcp_2sds, ρ) + D(cpsd_sdc, ρ)
     
-    return ga * first_line + gb * second_line
+    return ga .* first_line .+ gb .* second_line
 end
 
 
-function meqevolve(ρ, bosonic_operators, ga, gb, timesteps)
-    # Tensor Bosonic Operators
-    c, cp, s, sd = bosonic_operators
-
-    cc_2ssd = kron(c, c) - 2 * kron(s, sd)
-    cs_scp = kron(c, s) + kron(s, cp)
-    cpcp_2sds = kron(cp, cp) - 2 * kron(sd, s)
-    cpsd_sdc = kron(cp, sd) + kron(sd, c)
-    bosonic_operators = [cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc]
+function meqevolve_2(ρ, bosonic_operators, ga, gb, timesteps, ndims)
     
     for _ in 1:timesteps
-        ρ += master_equation(ρ, bosonic_operators, ga, gb)
+        ρ += master_equation_2(ρ, bosonic_operators, ga, gb, ndims)
+    end
+    return ρ
+end
+
+function master_equation(ρ, bosonic_operators, ga, gb, ndims)
+    c, cp, s, sd = bosonic_operators
+    first_line, second_line = Matrix{ComplexF64}(undef, ndims, ndims), Matrix{ComplexF64}(undef, ndims, ndims)
+    # Dissipators
+    first_line = 0.5 * D(c, ρ) + D(sd, ρ)
+
+    second_line = 0.5 * D(cp, ρ) + D(s, ρ)
+    
+    return ga .* first_line .+ gb .* second_line
+end
+
+
+function meqevolve(ρ, bosonic_operators, ga, gb, timesteps, ndims)
+    
+    for _ in 1:timesteps
+        ρ += master_equation(ρ, bosonic_operators, ga, gb, ndims)
     end
     return ρ
 end
 
 
 function krausevolve(ρ, kraus, timesteps)
-    old = ρ
     dimensions = size(ρ)
-    temp1 = zeros(dimensions)
-    temp2 = zeros(dimensions)
+    temp1 = spzeros(ComplexF64, dimensions)
     for _ in 1:timesteps
-        # Reset the new density operator
-        new = zeros(dimensions)
+        temp2 = spzeros(ComplexF64, dimensions)
         for ek in kraus
-            mul!(temp1, ek, old)  # left multiplication
-            mul!(temp2, temp1, ek')  # right multiplication
-            new .+= temp2
+            mul!(temp1, ek, ρ)  # left multiplication
+            mul!(temp1, temp1, ek')  # right multiplication
+            temp2 .+= temp1
         end
-        old = new  # updates the old density operator
+        ρ = temp2  # updates the old density operator
     end
-    return old
+    return ρ
 end
 
 
@@ -99,73 +108,48 @@ function _free_hamiltonian(ω, n)
 end
 
 
-function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity)
+function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity, idd, π_parts)
     ndims = size(ρ, 1)
+
+    n, π_a, π_ad = π_parts
     opa, opad = convert(Matrix{Float32}, jumps[1]), convert(Matrix{Float32}, jumps[2])
 
     l0 = cavity.length
     α0 = cavity.α
 
     a = cavity.acceleration
-
-    global l = l0
-    #=l_evolution = []=#
-
-    ρ_e = ρ
+    
     for t in 0:Δt:timesteps
         # Move the cavity wall
         cavity.length += 0.5 * a * Δt^2
+        ω = α0 / cavity.length
         # Update energies
-        h = _free_hamiltonian(cavity.length, α0, opa, opad)
+        h = 0.5 * ω .* n
         # Evolve the System
-        U = sparse(exp(-im * h))
-        ρ_e = U * ρ_e * U'
+        U = padm(-im .* h)
+        ρ = U * ρ * U'
         # Update pressure and acceleration
-        a = pressure(ρ_e, α0, cavity.length, cavity.surface, t)*cavity.surface
-        a -= cavity.external_force
-        a /= cavity.mass
-        #=push!(l_evolution, l)=#
+        π_op = (2 * n + idd)  - (π_a * exp(-2*im*ω*t)) - (π_ad * exp(2*im*ω*t))
+        p = Measurements.pressure(ρ, π_op, α0, cavity.length, cavity.surface)
+        a = (p * cavity.surface - cavity.external_force) / cavity.mass
     end   
   
-    #=cavity.length = l=#
     cavity.acceleration = a
-    return ρ_e, cavity
+    return ρ, cavity
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
-    function update_a(pressure, cavity)
-        (pressure * cavity.surface - cavity.external_force ) / cavity.mass
-    end
+function adiabaticevolve_2(ρ, cavities, Δt, timesteps, allocated_op, π_parts)
+    U, idd = allocated_op
+    n, π_a, π_ad = π_parts
     
-    opa, opad = jumps
-    # Reduce precision
-    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
-    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
-    # Operators must be defined on one subspace
-    dims = Int(sqrt(size(ρ)[1]))
-    idd = Measurements._idd(dims)
     Δt² = Δt^2  
-
-    # Pressure Operator
-    # Decomposed in three parts (constant and rotating)
-    n = opad * opa
-    π_a = opa * opa
-    π_ad = opad * opad
-
-    # Preallocate variables with reduce precision
-    π₁, π₂ = spzeros(ComplexF32, size(n)...), spzeros(ComplexF32, size(n)...)
-    h = spzeros(Float32, size(ρ)...)
-    U = spzeros(ComplexF32, size(ρ)...)
-    ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert real sparse matrix to complex sparse
 
     c1, c2 = cavities
     α0 = c1.α
 
-    # a1 = c1.acceleration
-    # a2 = c2.acceleration
-    a1 = 0  # Cavities are fixed until this time
-    a2 = 0
+    a1 = c1.acceleration
+    a2 = c2.acceleration
     
     for t_idx in 0:timesteps
         t = t_idx * Δt
@@ -175,23 +159,21 @@ function adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
         # Update energies
         ω₁ = α0 / c1.length
         ω₂ = α0 / c2.length
-        h1 = _free_hamiltonian(ω₁, n)
-        h2 = _free_hamiltonian(ω₂, n)
-        kron!(h, h1, h2)
+        h1 = 0.5 * ω₁ .* n
+        h2 = 0.5 * ω₂ .* n
+        h = kron(h1, h2)
         # Evolve the System
         U .= padm(-im .* h)
-        mul!(ρ, U, ρ)
-        mul!(ρ, ρ, U')
+        ρ = U * ρ * U'
         # Update pressure and acceleration
-        @. π₁ = (2 * n + 1)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
-        @. π₂ = (2 * n + 1)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
-        println(typeof(π₂))
+        π₁ = (2 * n + idd)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
+        π₂ = (2 * n + idd)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
         p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
         p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
         a1 = (p1 * c1.surface - c1.external_force) / c1.mass
         a2 = (p2 * c2.surface - c2.external_force) / c2.mass
     end
-  
+
     c1.acceleration = a1
     c2.acceleration = a2
 
@@ -200,39 +182,39 @@ end
 
 end
 
-using BenchmarkTools
-using LinearAlgebra
-using Expokit
-using .OpticalCavity
-using .BosonicOperators
-using .MasterEquations
-include("../src/RoutineFunctions.jl")
-
-
-function benchmark_adiabatic_stroke(ρ, cavities, Δt, timesteps, jumps)
-    result = MasterEquations.adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)
-    return 0
-end
-
-
-println("MAIN")
-function stroke_params(time)
-    ndims = 20
-    timesteps = time 
-    Δt = 1e-2
-
-    ρt = thermalstate(ndims, 1.0, 1.5)
-    ρ = sparse(kron(ρt, ρt))
-
-    c = OpticalCavity.Cavity(1.0, 1.0, 1.0, π, 0.0, 0.5)
-    cavities = [c, c]
-
-    a = BosonicOperators.destroy(ndims, true)
-    ad = BosonicOperators.create(ndims, true)
-    jumps = [a, ad]
-    
-    return ρ, cavities, Δt, timesteps, jumps
-end
+#=using BenchmarkTools=#
+#=using LinearAlgebra=#
+#=using Expokit=#
+#=using .OpticalCavity=#
+#=using .BosonicOperators=#
+#=using .MasterEquations=#
+#=include("../src/RoutineFunctions.jl")=#
+#==#
+#==#
+#=function benchmark_adiabatic_stroke(ρ, cavities, Δt, timesteps, jumps)=#
+#=    result = MasterEquations.adiabaticevolve_2(ρ, cavities, Δt, timesteps, jumps)=#
+#=    return 0=#
+#=end=#
+#==#
+#==#
+#=println("MAIN")=#
+#=function stroke_params(time)=#
+#=    ndims = 20=#
+#=    timesteps = time =#
+#=    Δt = 1e-2=#
+#==#
+#=    ρt = thermalstate(ndims, 1.0, 1.5)=#
+#=    ρ = sparse(kron(ρt, ρt))=#
+#==#
+#=    c = OpticalCavity.Cavity(1.0, 1.0, 1.0, π, 0.0, 0.5)=#
+#=    cavities = [c, c]=#
+#==#
+#=    a = BosonicOperators.destroy(ndims, true)=#
+#=    ad = BosonicOperators.create(ndims, true)=#
+#=    jumps = [a, ad]=#
+#==#
+    #=return ρ, cavities, Δt, timesteps, jumps=#
+#=end=#
 
 #=@benchmark benchmark_adiabatic_stroke($stroke_params()...)=#
 

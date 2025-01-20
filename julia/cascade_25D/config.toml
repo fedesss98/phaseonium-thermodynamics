@@ -1,0 +1,42 @@
+# Simulation 2
+# Configuration File
+
+description = """Simulation 2: \
+                 Two cavities cycle without \
+                 letting the second to thermalize. \
+                 The average number of photons \
+                 is kept between 1 and 2.
+              """
+
+dims = 25
+omega = 5.0
+dt = 0.01
+cycles = 2
+T_initial = 7.0
+
+[phaseonium]
+phi_hot = 3.0
+T_hot = 8.0
+phi_cold = 4.0
+T_cold = 5.0
+
+[cavity]
+mass = 1.0
+surface = 1.0
+length = 1.0
+alpha = 3.1415926535
+acceleration = 0.0
+external_force = 0.5
+
+[stroke_time]
+isochore = 800
+adiabatic = 5000
+
+[samplings]
+isochore = 32
+adiabatic = 32
+
+[loading]
+load_state = true
+filename = "state_cascade_nonthermal_2photons_13cycles"
+past_cycles = 13

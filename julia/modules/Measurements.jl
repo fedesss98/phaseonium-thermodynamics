@@ -81,5 +81,15 @@ function pressure(ρ, π, idd, α, l, S; s=0)
     real(coefficient * tr(ρ * op))
 end
 
+
+function pressure(ρ, π, α, l, S)
+
+    coefficient = α / (2*l^2*S)
+
+    ω = α / l
+
+    real(coefficient * tr(ρ * π))
+end
+
 end
 
