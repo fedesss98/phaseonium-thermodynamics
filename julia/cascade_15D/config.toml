@@ -1,7 +1,7 @@
 # Simulation 1
 # Configuration File
 
-title = "Simulation 1 - 15D"
+description = "Simulation 1 - 15D"
 
 dims = 15
 omega = 1.0

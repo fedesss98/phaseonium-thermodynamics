@@ -58,7 +58,7 @@ end
 end
 
 @option struct SimOptions
-    title::String
+    description::String
     dims::Int
     omega::Float64
     dt::Float64
@@ -132,11 +132,11 @@ function create_phaseoniums(options, ω)
     return (ga_h, gb_h, bosonic_h), (ga_c, gb_c, bosonic_c)
 end
 
-function load_or_create_state(options, ρ, cavity; dir=ARGS[1])
+function load_or_create_state(options, ρ, cavity1, cavity2; dir=ARGS[1])
     if options.load_state
         return deserialize(dir * "/" * options.filename), options.past_cycles
     else
-        return StrokeState(Matrix(ρ), cavity, cavity), 0
+        return StrokeState(Matrix(ρ), cavity1, cavity2), 0
     end
 end
 
@@ -151,14 +151,14 @@ function _phaseonium_stroke(state::StrokeState, time, bosonic, ga, gb, ss)
     ρ₂_evolution = [partial_trace(real(ρ), (dims, dims), 2) for ρ in stroke_evolution]
     c₁_lengths = [state.c₁.length for _ in stroke_evolution]
     c₂_lengths = [state.c₂.length for _ in stroke_evolution]
-    
+
     append!(state.ρ₁_evolution, ρ₁_evolution)
     append!(state.ρ₂_evolution, ρ₂_evolution)
     append!(state.c₁_evolution, c₁_lengths)
     append!(state.c₂_evolution, c₂_lengths)
     
     state.ρ = real(chop!(stroke_evolution[end]))
-    return state
+    return state, stroke_evolution
 end
 
 
@@ -181,36 +181,58 @@ function _adiabatic_stroke(state::StrokeState, time, Δt, jumps, ss)
     state.ρ = real(chop!(stroke_evolution[end]))
     state.c₁.length = cavity_motion[end][1]
     state.c₂.length = cavity_motion[end][2]
-    return state
+    return state, stroke_evolution
 end
 
 
 function cycle(state, 
         isochore_t, isochore_samplings, heat_params, cool_params, 
         adiabatic_t, adiabatic_samplings, adiabatic_params)
-    if state isa Vector
-        ρ, c₁, c₂ = state
-        state = StrokeState(Matrix(ρ), c₁, c₂)
-    end
     
     # Isochoric Heating
     ga_h, gb_h, bosonic_h  = heat_params
-    state = _phaseonium_stroke(state, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings)
+    state, _ = _phaseonium_stroke(state, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings)
     # Adiabatic Expansion
     Δt, a, ad = adiabatic_params
-    state = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    state, _ = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
     # Isochoric Cooling
     ga_c, gb_c, bosonic_c = cool_params
-    state = _phaseonium_stroke(state, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
+    state, _ = _phaseonium_stroke(state, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
     # Adiabatic Compression
-    state = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    state, _ = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
     
     return state
 end
 
 
+function last_cycle(state, 
+        isochore_t, isochore_samplings, heat_params, cool_params, 
+        adiabatic_t, adiabatic_samplings, adiabatic_params)
+
+    strokes_evolution = []
+    # Isochoric Heating
+    ga_h, gb_h, bosonic_h  = heat_params
+    state, stroke_evolution = _phaseonium_stroke(state, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings)
+    push!(strokes_evolution, stroke_evolution)
+    # Adiabatic Expansion
+    Δt, a, ad = adiabatic_params
+    state, stroke_evolution = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    push!(strokes_evolution, stroke_evolution)
+    # Isochoric Cooling
+    ga_c, gb_c, bosonic_c = cool_params
+    state, stroke_evolution = _phaseonium_stroke(state, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
+    push!(strokes_evolution, stroke_evolution)
+    # Adiabatic Compression
+    state, stroke_evolution = _adiabatic_stroke(state, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    push!(strokes_evolution, stroke_evolution)
+    
+    return state, strokes_evolution
+end
+
+
 function run_cycle(options)
-    cavity = create_cavity(options.cavity)
+    cavity1 = create_cavity(options.cavity)
+    cavity2 = create_cavity(options.cavity)
     ω = options.cavity.alpha / options.cavity.length
     
     # Joint system
@@ -224,14 +246,24 @@ function run_cycle(options)
 
     # State object comprising the cavities parameters and density matrices, 
     # as well as their temporal evolution
-    state, past_cycles = load_or_create_state(options.loading, ρ_tot, cavity)
+    state, past_cycles = load_or_create_state(options.loading, ρ_tot, cavity1, cavity2)
 
     for t in 1:options.cycles
         println("Cycle $(t + past_cycles)")
-        state = cycle(
-            state, 
-            options.stroke_time.isochore, options.samplings.isochore, heat_params, cool_params,
-            options.stroke_time.adiabatic, options.samplings.adiabatic, (options.dt, a, ad))
+        if t == options.cycles
+            state = cycle(
+                state, 
+                options.stroke_time.isochore, options.samplings.isochore, heat_params, cool_params,
+                options.stroke_time.adiabatic, options.samplings.adiabatic, (options.dt, a, ad))
+        else
+            state, evolution = cycle(
+                state, 
+                options.stroke_time.isochore, options.samplings.isochore, heat_params, cool_params,
+                options.stroke_time.adiabatic, options.samplings.adiabatic, (options.dt, a, ad))
+
+            # Save evolution of composite system in the last cycle
+            serialize("$(ARGS[1])/system_evolution", evolution)
+        end
     end
 
     # Save state
