@@ -152,7 +152,7 @@ function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; samp
     verbose > 2 ? iter = ProgressBar(1:sampling_steps) : iter=1:sampling_steps
     for i in iter
         ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
-            ρ, [c1, c2], Δt, silent_evolution_time, alloc, π_parts
+            ρ, [c1, c2], Δt, i, silent_evolution_time, alloc, π_parts
         )
         systems[i+1] = ρ
         cavity_lengths[i+1] = [c1.length, c2.length]

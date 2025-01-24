@@ -11,7 +11,7 @@ description = """Simulation 2: \
 dims = 25
 omega = 5.0
 dt = 0.01
-cycles = 2
+cycles = 15
 T_initial = 7.0
 
 [phaseonium]
@@ -29,7 +29,7 @@ acceleration = 0.0
 external_force = 0.5
 
 [stroke_time]
-isochore = 800
+isochore = 8000
 adiabatic = 5000
 
 [samplings]
@@ -38,5 +38,5 @@ adiabatic = 32
 
 [loading]
 load_state = true
-filename = "state_cascade_nonthermal_2photons_13cycles"
-past_cycles = 13
+filename = "state_cascade_nonthermal_2photons_75cycles"
+past_cycles = 15

@@ -179,6 +179,120 @@ function _check(ρ)
     println("Final Temperature of the System: $(Measurements.temperature(ρ, ω))")
 end
 
+function _create_cavity(config)
+    mass = config["cavity"]["mass"]
+    surface = config["cavity"]["surface"]
+    α0 = config["cavity"]["alpha"]
+    l0 = config["cavity"]["length"]
+    expanding_force = config["cavity"]["external_force"]
+    cavity = Cavity(mass, surface, l0, α0, expanding_force)
+end
+
+function load_or_create(dir, config)
+    if config["loading"]["load_state"]
+        filename = config["loading"]["filename"]
+        cycles = config["loading"]["past_cycles"]
+        println("Loading file " * filename)
+        state = deserialize("$dir/$(filename)_$(cycles)C.jl")
+    else
+        println("Starting with a new cascade system")
+
+        ρt = thermalstate(config["dims"], config["omega"], config["T_initial"])
+        println("Initial Temperature of the Cavity:
+            $(Measurements.temperature(ρt, ω))")
+        cavity1 = _create_cavity(config)
+        cavity2 = _create_cavity(config)
+        state = StrokeState(Matrix(kron(ρt, ρt)), cavity1, cavity2)
+    end
+    return state
+end
+
+function bosonic_operators(α, ϕ, Ω, Δt, ndims)
+    
+    C = BosonicOperators.C(Ω*Δt, ndims)
+    Cp = BosonicOperators.Cp(Ω*Δt, ndims)
+    S = BosonicOperators.S(Ω*Δt, ndims)
+    Sd = BosonicOperators.Sd(Ω*Δt, ndims)
+    
+    return [C, Cp, S, Sd]
+end
+
+
+"""
+===== CYCLE EVOLUTION =====
+"""
+
+function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps)
+    stroke_evolution = Thermodynamics.phaseonium_stroke_2(
+        state.ρ, time, bosonic, ga, gb; 
+        sampling_steps=samplingssteps, verbose=1)
+
+    ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
+    ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
+    c₁_lengths = [state.c₁.length for _ in stroke_evolution]
+    c₂_lengths = [state.c₂.length for _ in stroke_evolution]
+    
+    append!(state.ρ₁_evolution, ρ₁_evolution)
+    append!(state.ρ₂_evolution, ρ₂_evolution)
+    append!(state.c₁_evolution, c₁_lengths)
+    append!(state.c₂_evolution, c₂_lengths)
+    
+    # state.ρ = real(chop!(stroke_evolution[end]))
+    state.ρ = real(stroke_evolution[end])
+    return state, stroke_evolution
+end
+
+
+function _adiabatic_stroke(state::StrokeState, ndims, time, Δt, jumps, samplingssteps)
+    stroke_evolution, cavity_motion = Thermodynamics.adiabatic_stroke_2(
+        state.ρ, [state.c₁, state.c₂], time, Δt, jumps;
+        sampling_steps=samplingssteps, verbose=1)
+
+    ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
+    ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
+    c₁_lengths = [l1 for (l1, _) in cavity_motion]
+    c₂_lengths = [l2 for (_, l2) in cavity_motion]
+    
+    append!(state.ρ₁_evolution, ρ₁_evolution)
+    append!(state.ρ₂_evolution, ρ₂_evolution)
+    append!(state.c₁_evolution, c₁_lengths)
+    append!(state.c₂_evolution, c₂_lengths)
+    
+    # state.ρ = real(chop!(stroke_evolution[end]))
+    state.ρ = real(stroke_evolution[end])
+    state.c₁.length = cavity_motion[end][1]
+    state.c₂.length = cavity_motion[end][2]
+    return state, stroke_evolution
+end    
+
+function cycle(state, system_evolutions, isochore_t, isochore_samplings, adiabatic_t, adiabatic_samplings)
+    if state isa Vector
+        ρ, c₁, c₂ = state
+        state = StrokeState(Matrix(ρ), c₁, c₂)
+    end
+    ndims = Int64(sqrt(size(state.ρ)[1]))  # Dimensions of one cavity
+    
+    # Isochoric Heating
+    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings)
+    append!(system_evolutions, system_evolution)
+    # Adiabatic Expansion
+    state, system_evolution = _adiabatic_stroke(state, ndims, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    append!(system_evolutions, system_evolution)
+    # Isochoric Cooling
+    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
+    append!(system_evolutions, system_evolution)
+    # Adiabatic Compression
+    state, system_evolution = _adiabatic_stroke(state, ndims, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    append!(system_evolutions, system_evolution)
+    
+    return state, system_evolutions
+end
+
+
+"""
+PLOTTING
+"""
+
 function measure_and_plot(x, y, system_evolution, cavity_evolution, title; α=π)
     ys = []
     xs = []
@@ -225,29 +339,32 @@ function measure_and_plot(x, y, system_evolution, cavity_evolution, title; α=π
     return g
 end
 
-function plot_strokes_overlays(g, temperatures, isochore_samplings, adiabatic_samplings; x_max=1000)
 
-    function rectangle(x, w, h)
+function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x_min=0, x_max=1000)
+
+    function _rectangle(x, w, h_up, h_down)
         Shape([
-                (x, 0),
-                (x, h),
-                (x+w, h),
-                (x+w, 0)
+                (x, h_down),
+                (x, h_up),
+                (x+w, h_up),
+                (x+w, h_down)
         ])
     end
     
     heating_distance = 2 * (isochore_samplings+adiabatic_samplings) + 4
-    isochore_strokes = 1:heating_distance:length(temperatures)
-    adiabatic_strokes = isochore_samplings+3+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(temperatures)
-    y_max = maximum(temperatures) + 0.1 * maximum(temperatures)
+    isochore_strokes = 1:heating_distance:length(ys)
+    adiabatic_strokes = isochore_samplings+3+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
+    y_max = maximum(ys) + 0.1 * maximum(ys)
+    y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
     for left in isochore_strokes
-        plot!(g, rectangle(left, isochore_samplings+1, y_max), fillcolor=:red, alpha=0.05, label=false)
+        plot!(g, _rectangle(left, isochore_samplings+1, y_max, y_min), fillcolor=:red, alpha=0.05, label=false)
         left_cooling = left+isochore_samplings+adiabatic_samplings+2
-        plot!(g, rectangle(left_cooling, isochore_samplings+1, y_max), fillcolor=:blue, alpha=0.05, label=false)
+        plot!(g, _rectangle(left_cooling, isochore_samplings+1, y_max, y_min), fillcolor=:blue, alpha=0.05, label=false)
     end
-    xlims!(0, x_max)
-    ylims!(0, y_max)
+    xlims!(x_min, x_max)
+    ylims!(y_min, y_max)
 end
+
 
 function plot_in_time(observable, system_evolution, cavity_evolution, label, title; 
         g=nothing, α=π, isochore_samplings=1, adiabatic_samplings=1, x_max=1000)

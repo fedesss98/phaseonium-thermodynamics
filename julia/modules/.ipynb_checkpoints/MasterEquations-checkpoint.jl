@@ -139,7 +139,7 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity, idd, π_parts)
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, timesteps, allocated_op, π_parts)
+function adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_parts)
     U, idd = allocated_op
     n, π_a, π_ad = π_parts
     
@@ -151,7 +151,7 @@ function adiabaticevolve_2(ρ, cavities, Δt, timesteps, allocated_op, π_parts)
     a1 = c1.acceleration
     a2 = c2.acceleration
     
-    for t_idx in 0:timesteps
+    for t_idx in timesteps*(t-1)+1:timesteps*t
         t = t_idx * Δt
         # Move the cavity wall
         c1.length += 0.5 * a1 * Δt²

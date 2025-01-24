@@ -1,0 +1,40 @@
+# Simulation 1
+# Configuration File
+
+description = """
+Simulation 2 - 15D \
+- Long thermalization - No entanglement
+"""
+
+dims = 15
+omega = 5.0
+dt = 0.01
+cycles = 4
+T_initial = 1.0
+
+[phaseonium]
+phi_hot = 3.0
+T_hot = 1.2
+phi_cold = 4.0
+T_cold = 0.7
+
+[cavity]
+mass = 1.0
+surface = 1.0
+length = 1.0
+alpha = 3.1415926535
+acceleration = 0.0
+external_force = 0.5
+
+[stroke_time]
+isochore = 3000
+adiabatic = 2000
+
+[samplings]
+isochore = 60
+adiabatic = 60
+
+[loading]
+load_state = true
+filename = "state"
+past_cycles = 40
