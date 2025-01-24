@@ -6,6 +6,9 @@ visualization
 *.jpg
 *.svg
 
+# Jupyter Lab checkpoints
+.ipynb_checkpoints
+
 # Created by https://www.toptal.com/developers/gitignore/api/julia,jupyternotebooks,python,vim
 # Edit at https://www.toptal.com/developers/gitignore?templates=julia,jupyternotebooks,python,vim
 
