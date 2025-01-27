@@ -139,7 +139,7 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity, idd, π_parts)
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_parts)
+function _adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_parts)
     U, idd = allocated_op
     n, π_a, π_ad = π_parts
     
@@ -176,6 +176,50 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_par
 
     c1.acceleration = a1
     c2.acceleration = a2
+
+    return ρ, c1, c2
+end
+
+
+function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts)
+    U, idd = allocated_op
+    n, π_a, π_ad = π_parts
+    
+    Δt² = Δt^2  
+
+    c1, c2 = cavities
+    α0 = c1.α
+
+    a1 = c1.acceleration
+    a2 = c2.acceleration
+    
+    # Move the cavity wall
+    for c in (c1, c2)
+        c.length += 0.5 * c.acceleration * Δt²
+        # Constrain the cavity movement blocking the walls
+        c.length = clamp(c.length, c.l_min, c.l_max)
+    end
+    
+    
+    # Update energies
+    ω₁ = α0 / c1.length
+    ω₂ = α0 / c2.length
+    h1 = 0.5 * ω₁ .* n
+    h2 = 0.5 * ω₂ .* n
+    h = kron(h1, h2)
+    
+    # Evolve the System
+    U .= padm(-im .* h)
+    ρ = U * ρ * U'
+    
+    # Update pressure and acceleration
+    π₁ = (2 * n + idd)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
+    π₂ = (2 * n + idd)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
+    p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
+    p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
+    
+    c1.acceleration = (p1 * c1.surface - c1.external_force) / c1.mass
+    c2.acceleration = (p2 * c2.surface - c2.external_force) / c2.mass
 
     return ρ, c1, c2
 end

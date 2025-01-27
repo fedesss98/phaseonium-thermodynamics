@@ -1,30 +1,33 @@
-# Simulation 1
 # Configuration File
 
-description = "Simulation 1 - 15D"
+description = """
+Simulation 3 - 15D \
+- Medium thermalization - Medium entanglement: what happens to the efficiency?
+"""
 
 dims = 15
 omega = 5.0
 dt = 0.01
 cycles = 4
-T_initial = 1.0
+T_initial = 2.0
 
 [phaseonium]
 phi_hot = 3.0
-T_hot = 1.2
-phi_cold = 4.0
-T_cold = 0.7
+T_hot = 3.0
+phi_cold = 3.0
+T_cold = 1.5
 
 [cavity]
 mass = 1.0
 surface = 1.0
-length = 1.0
+min_length = 1.0
+max_length = 1.1
 alpha = 3.1415926535
 acceleration = 0.0
-external_force = 0.5
+external_force = 2.5
 
 [stroke_time]
-isochore = 1200
+isochore = 4000
 adiabatic = 2000
 
 [samplings]
@@ -33,5 +36,5 @@ adiabatic = 60
 
 [loading]
 load_state = false
-filename = "state_cascade_nonthermal_12cycles"
-past_cycles = 12
+filename = "state"
+past_cycles = 0

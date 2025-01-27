@@ -115,7 +115,7 @@ function adiabatic_stroke(ρ, time::Int64, Δt::Float64, jumps, cavity, idd, π_
 end
 
 
-function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sampling_steps=10, verbose=1)
+function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sampling_steps=10, verbose=1)
     if verbose > 0
         println("Adiabatic Stroke")
     end
@@ -166,6 +166,78 @@ function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; samp
             title="Adiabatic Stroke",
         )
         plot!(0:sampling_steps, c2_lengths, label="Cavity 2 Length")
+        display(g)
+    end
+    
+    return systems, cavity_lengths
+end
+
+
+function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sampling_steps=10, verbose=1)
+    verbose > 0 && println("Adiabatic Stroke")
+
+    # Operators are defined on one subspace
+    dims = Int(sqrt(size(ρ)[1]))
+    identity_matrix = spdiagm(ones(dims))
+    opa, opad = jumps
+    # Reduce precision
+    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
+    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
+    # Pressure Operator
+    # Decomposed in three parts (constant and rotating)
+    n = opad * opa
+    π_a = opa * opa
+    π_ad = opad * opad
+    π_parts = (n, π_a, π_ad) 
+
+    # Preallocate variables with reduce precision
+    U = spzeros(ComplexF32, size(ρ)...)
+    alloc = (U, identity_matrix)
+
+    # Initialize system tracking
+    systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps)
+    systems[1] = ρ
+
+    # Setup cavities
+    c1, c2 = cavities
+    c1.acceleration = c2.acceleration = 0  # They start blocked
+
+    # Determine expansion/contraction direction
+    is_expanding = c1.l_min == c1.length
+    l_start, l_end, direction = is_expanding ? (c1.l_min, c1.l_max, 1) : (c1.l_max, c1.l_min, -1)
+    l_samplings = collect(range(l_start, stop=l_end, length=sampling_steps))
+    
+    cavity_lengths = [[c1.length, c2.length] for _ in 1:sampling_steps]
+    
+    if verbose > 2 
+        iter = ProgressBar(total=sampling_steps)
+    end
+    
+    t = 0
+    i = 2
+    while i <= sampling_steps
+        if direction * c2.length >= direction * l_samplings[i]
+            systems[i] = ρ
+            cavity_lengths[i] = [c1.length, c2.length]
+            verbose > 2 && update(iter)
+            i += 1
+        end
+        
+        ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
+            ρ, [c1, c2], Δt, t, alloc, π_parts
+        )
+        t += Δt
+    end
+    
+    if verbose > 1
+        c1_lengths = [l1 for (l1, l2) in cavity_lengths]
+        c2_lengths = [l2 for (l1, l2) in cavity_lengths]
+        g = plot(
+            1:sampling_steps, c1_lengths, 
+            label="Cavity 1 Length",
+            title="Adiabatic Stroke",
+        )
+        plot!(1:sampling_steps, c2_lengths, label="Cavity 2 Length")
         display(g)
     end
     

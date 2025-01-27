@@ -59,6 +59,11 @@ function temperature_of_state(state, ω)
 end
 
 
+function classic_temp(quantum_temp, α, ϕ)
+    coeff = log(1+cos(ϕ))/log((1-α^2)/(2*α^2))
+    return quantum_temp * (1 + coeff)
+end  
+
         
 function matrixdistance(M1, M2)
     """Calculates the Frobenius distance between two matrices
@@ -183,21 +188,22 @@ function _create_cavity(config)
     mass = config["cavity"]["mass"]
     surface = config["cavity"]["surface"]
     α0 = config["cavity"]["alpha"]
-    l0 = config["cavity"]["length"]
+    l_min = config["cavity"]["min_length"]
+    l_max = config["cavity"]["max_length"]
     expanding_force = config["cavity"]["external_force"]
-    cavity = Cavity(mass, surface, l0, α0, expanding_force)
+    cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force)
 end
 
 function load_or_create(dir, config)
     if config["loading"]["load_state"]
         filename = config["loading"]["filename"]
         cycles = config["loading"]["past_cycles"]
-        println("Loading file " * filename)
+        println("Loading file $dir/$(filename)_$(cycles)C.jl")
         state = deserialize("$dir/$(filename)_$(cycles)C.jl")
     else
-        println("Starting with a new cascade system")
-
-        ρt = thermalstate(config["dims"], config["omega"], config["T_initial"])
+        println("Starting with a new cascade system (contracted)")
+        ω = config["cavity"]["alpha"] / config["cavity"]["min_length"]
+        ρt = thermalstate(config["dims"], ω, config["T_initial"])
         println("Initial Temperature of the Cavity:
             $(Measurements.temperature(ρt, ω))")
         cavity1 = _create_cavity(config)
@@ -207,7 +213,7 @@ function load_or_create(dir, config)
     return state
 end
 
-function bosonic_operators(α, ϕ, Ω, Δt, ndims)
+function bosonic_operators(Ω, Δt, ndims)
     
     C = BosonicOperators.C(Ω*Δt, ndims)
     Cp = BosonicOperators.Cp(Ω*Δt, ndims)
@@ -351,14 +357,14 @@ function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x
         ])
     end
     
-    heating_distance = 2 * (isochore_samplings+adiabatic_samplings) + 4
+    heating_distance = 2 * (isochore_samplings+adiabatic_samplings) + 2
     isochore_strokes = 1:heating_distance:length(ys)
-    adiabatic_strokes = isochore_samplings+3+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
+    adiabatic_strokes = isochore_samplings+2+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
     y_max = maximum(ys) + 0.1 * maximum(ys)
     y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
     for left in isochore_strokes
         plot!(g, _rectangle(left, isochore_samplings+1, y_max, y_min), fillcolor=:red, alpha=0.05, label=false)
-        left_cooling = left+isochore_samplings+adiabatic_samplings+2
+        left_cooling = left+isochore_samplings+adiabatic_samplings+1
         plot!(g, _rectangle(left_cooling, isochore_samplings+1, y_max, y_min), fillcolor=:blue, alpha=0.05, label=false)
     end
     xlims!(x_min, x_max)
