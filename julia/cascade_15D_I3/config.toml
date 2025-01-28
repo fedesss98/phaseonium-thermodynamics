@@ -12,9 +12,9 @@ cycles = 4
 T_initial = 2.0
 
 [phaseonium]
-phi_hot = 3.0
+phi_hot = 1.8
 T_hot = 3.0
-phi_cold = 3.0
+phi_cold = 2.4
 T_cold = 1.5
 
 [cavity]
@@ -27,12 +27,12 @@ acceleration = 0.0
 external_force = 2.5
 
 [stroke_time]
-isochore = 6000
+isochore = 14000
 adiabatic = 2000
 
 [samplings]
-isochore = 60
-adiabatic = 60
+isochore = 150
+adiabatic = 50
 
 [loading]
 load_state = false

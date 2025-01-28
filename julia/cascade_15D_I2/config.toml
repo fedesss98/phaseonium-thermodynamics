@@ -12,7 +12,7 @@ cycles = 4
 T_initial = 2.0
 
 [phaseonium]
-phi_hot = 3.0
+phi_hot = 1.5
 T_hot = 3.0
 phi_cold = 3.0
 T_cold = 1.5

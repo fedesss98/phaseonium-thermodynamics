@@ -59,9 +59,9 @@ function temperature_of_state(state, ω)
 end
 
 
-function classic_temp(quantum_temp, α, ϕ)
-    coeff = log(1+cos(ϕ))/log((1-α^2)/(2*α^2))
-    return quantum_temp * (1 + coeff)
+function classic_temp(quantum_temp, ω, ϕ)
+    den = 1 - quantum_temp / ω * log(1 + cos(ϕ))
+    return quantum_temp / den
 end  
 
         
@@ -231,7 +231,7 @@ end
 function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps)
     stroke_evolution = Thermodynamics.phaseonium_stroke_2(
         state.ρ, time, bosonic, ga, gb; 
-        sampling_steps=samplingssteps, verbose=1)
+        sampling_steps=samplingssteps, verbose=2)
 
     ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
     ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
@@ -252,7 +252,7 @@ end
 function _adiabatic_stroke(state::StrokeState, ndims, time, Δt, jumps, samplingssteps)
     stroke_evolution, cavity_motion = Thermodynamics.adiabatic_stroke_2(
         state.ρ, [state.c₁, state.c₂], time, Δt, jumps;
-        sampling_steps=samplingssteps, verbose=1)
+        sampling_steps=samplingssteps, verbose=2)
 
     ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
     ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
