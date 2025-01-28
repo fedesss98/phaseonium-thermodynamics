@@ -8,14 +8,14 @@ Simulation 3 - 15D \
 dims = 15
 omega = 5.0
 dt = 0.01
-cycles = 4
+cycles = 3
 T_initial = 2.0
 
 [phaseonium]
-phi_hot = 1.5
-T_hot = 3.0
-phi_cold = 3.0
-T_cold = 1.5
+phi_hot = 1.8
+T_hot = 4.0
+phi_cold = 2.2
+T_cold = 1.2
 
 [cavity]
 mass = 1.0
@@ -31,8 +31,8 @@ isochore = 4000
 adiabatic = 2000
 
 [samplings]
-isochore = 60
-adiabatic = 60
+isochore = 150
+adiabatic = 50
 
 [loading]
 load_state = false

@@ -35,6 +35,6 @@ isochore = 150
 adiabatic = 50
 
 [loading]
-load_state = false
+load_state = true
 filename = "state"
-past_cycles = 0
+past_cycles = 2
