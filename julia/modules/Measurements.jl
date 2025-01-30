@@ -29,7 +29,7 @@ function entropy_vn(rho, args...; tol=1e-15)
             entr -= d*log(d)
         end
     end
-    return Float32(real(entr))
+    return real(entr)
 end
 
 

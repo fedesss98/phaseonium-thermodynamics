@@ -8,14 +8,14 @@ Simulation 3 - 15D \
 dims = 15
 omega = 5.0
 dt = 0.01
-cycles = 3
+cycles = 2
 T_initial = 2.0
 
 [phaseonium]
 phi_hot = 1.8
 T_hot = 4.0
 phi_cold = 2.2
-T_cold = 1.2
+T_cold = 1.4
 
 [cavity]
 mass = 1.0
@@ -27,7 +27,7 @@ acceleration = 0.0
 external_force = 2.5
 
 [stroke_time]
-isochore = 4000
+isochore = 3100
 adiabatic = 2000
 
 [samplings]

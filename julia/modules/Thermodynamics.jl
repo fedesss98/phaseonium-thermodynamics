@@ -55,21 +55,21 @@ function phaseonium_stroke_2(ρ, time, bosonic_operators, ga, gb; sampling_steps
     tensor_bosonic_opearators = cc_2ssd, cs_scp, cpcp_2sds, cpsd_sdc
 
     ndims = size(ρ)[1]    
-    systems = Vector{typeof(ρ)}(undef, sampling_steps + 1)
+    systems = Vector{typeof(ρ)}(undef, sampling_steps)
     systems[1] = ρ  # Initialize with the input state
 
     silent_evolution_time = div(time, sampling_steps)
     
-    iter = verbose > 2 ? ProgressBar(1:sampling_steps) : 1:sampling_steps
+    iter = verbose > 2 ? ProgressBar(2:sampling_steps) : 2:sampling_steps
     for i in iter
         ρ = MasterEquations.meqevolve_2(ρ, tensor_bosonic_opearators, ga, gb, silent_evolution_time, ndims)
-        systems[i + 1] = ρ
+        systems[i] = ρ
     end
 
     if verbose > 1
         ratios = [real(r[2, 2] / r[1, 1]) for r in systems]
         g = plot(
-            0:sampling_steps, ratios,
+            1:sampling_steps, ratios,
             label=L"\rho_{11} / \rho_{00}",
             title="Phaseonium Stroke"
         )
@@ -173,7 +173,7 @@ function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sam
 end
 
 
-function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sampling_steps=10, verbose=1)
+function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10, verbose=1)
     verbose > 0 && println("Adiabatic Stroke")
 
     # Operators are defined on one subspace
@@ -241,7 +241,7 @@ function adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; samp
         display(g)
     end
     
-    return systems, cavity_lengths
+    return systems, cavity_lengths, t
 end
 
 # function cycle(ρ, cavity, kraus thermalization_time, free_time,
