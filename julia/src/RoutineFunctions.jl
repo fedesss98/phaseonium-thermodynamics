@@ -162,7 +162,21 @@ function is_gaussian_state(ρ, a, ad)
     return is_positive_semi_definite && satisfies_uncertainty_principle
 end
 
-mutable struct StrokeState{T<:Union{Real,Complex}}
+#mutable struct StrokeState{T<:Union{Real,Complex}}
+#    ρ::Matrix{T}
+#    c₁::Cavity
+#    c₂::Cavity
+#    ρ₁_evolution::Vector{Matrix{T}}
+#    ρ₂_evolution::Vector{Matrix{T}}
+#    c₁_evolution::Vector{Float64}
+#    c₂_evolution::Vector{Float64}
+#
+#    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, c2, [], [], [], [])
+#    
+#    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, nothing, [], [], [], [])
+#end
+
+mutable struct StrokeState{T<:Complex}
     ρ::Matrix{T}
     c₁::Cavity
     c₂::Cavity
@@ -171,10 +185,11 @@ mutable struct StrokeState{T<:Union{Real,Complex}}
     c₁_evolution::Vector{Float64}
     c₂_evolution::Vector{Float64}
 
-    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, c2, [], [], [], [])
+    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Complex} = new{T}(ρ, c1, c2, [], [], [], [])
     
-    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, nothing, [], [], [], [])
+    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Complex} = new{T}(ρ, c1, nothing, [], [], [], [])
 end
+
 
 function _check(ρ)
     println("System after the stroke:")
@@ -203,7 +218,7 @@ function load_or_create(dir, config)
     else
         println("Starting with a new cascade system (contracted)")
         ω = config["cavity"]["alpha"] / config["cavity"]["min_length"]
-        ρt = thermalstate(config["dims"], ω, config["T_initial"])
+        ρt = complex(thermalstate(config["dims"], ω, config["T_initial"]))
         println("Initial Temperature of the Cavity:
             $(Measurements.temperature(ρt, ω))")
         cavity1 = _create_cavity(config)
@@ -244,14 +259,16 @@ function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, sa
     append!(state.c₂_evolution, c₂_lengths)
     
     # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = real(stroke_evolution[end])
+    state.ρ = stroke_evolution[end]
     return state, stroke_evolution
 end
 
 
-function _adiabatic_stroke(state::StrokeState, ndims, time, Δt, jumps, samplingssteps)
-    stroke_evolution, cavity_motion = Thermodynamics.adiabatic_stroke_2(
-        state.ρ, [state.c₁, state.c₂], time, Δt, jumps;
+function _adiabatic_stroke(state::StrokeState, ndims, Δt, jumps, samplingssteps)
+    stroke_evolution, 
+    cavity_motion, 
+    total_time = Thermodynamics.adiabatic_stroke_2(
+        state.ρ, [state.c₁, state.c₂], Δt, jumps;
         sampling_steps=samplingssteps, verbose=2)
 
     ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
@@ -265,13 +282,14 @@ function _adiabatic_stroke(state::StrokeState, ndims, time, Δt, jumps, sampling
     append!(state.c₂_evolution, c₂_lengths)
     
     # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = real(stroke_evolution[end])
+    state.ρ = (stroke_evolution[end])
     state.c₁.length = cavity_motion[end][1]
     state.c₂.length = cavity_motion[end][2]
-    return state, stroke_evolution
+    
+    return state, stroke_evolution, total_time
 end    
 
-function cycle(state, system_evolutions, isochore_t, isochore_samplings, adiabatic_t, adiabatic_samplings)
+function cycle(state, Δt, system_evolutions, cycle_steps, isochore_t, isochore_samplings, adiabatic_t, adiabatic_samplings)
     if state isa Vector
         ρ, c₁, c₂ = state
         state = StrokeState(Matrix(ρ), c₁, c₂)
@@ -281,15 +299,19 @@ function cycle(state, system_evolutions, isochore_t, isochore_samplings, adiabat
     # Isochoric Heating
     state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings)
     append!(system_evolutions, system_evolution)
+    append!(cycle_steps, Δt*isochore_t)
     # Adiabatic Expansion
-    state, system_evolution = _adiabatic_stroke(state, ndims, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, ndims, Δt, [a, ad], adiabatic_samplings)
     append!(system_evolutions, system_evolution)
+    append!(cycle_steps, adiabatic_t)
     # Isochoric Cooling
     state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
     append!(system_evolutions, system_evolution)
+    append!(cycle_steps, Δt*isochore_t)
     # Adiabatic Compression
-    state, system_evolution = _adiabatic_stroke(state, ndims, adiabatic_t, Δt, [a, ad], adiabatic_samplings)
+    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, ndims, Δt, [a, ad], adiabatic_samplings)
     append!(system_evolutions, system_evolution)
+    append!(cycle_steps, adiabatic_t)
     
     return state, system_evolutions
 end
@@ -357,9 +379,9 @@ function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x
         ])
     end
     
-    heating_distance = 2 * (isochore_samplings+adiabatic_samplings) + 2
+    heating_distance = 2 * (isochore_samplings+adiabatic_samplings)
     isochore_strokes = 1:heating_distance:length(ys)
-    adiabatic_strokes = isochore_samplings+2+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
+    adiabatic_strokes = isochore_samplings+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
     y_max = maximum(ys) + 0.1 * maximum(ys)
     y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
     for left in isochore_strokes
@@ -405,3 +427,5 @@ function plot_in_time(observable, system_evolution, cavity_evolution, label, tit
     return g
     
 end
+
+":)"

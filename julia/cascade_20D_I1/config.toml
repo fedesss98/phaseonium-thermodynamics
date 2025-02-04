@@ -1,0 +1,40 @@
+# Configuration File
+
+description = """
+Simulation 5 - 20D \
+- Fast thermalization - High entanglement: what happens to the efficiency?
+"""
+
+dims = 20
+omega = 5.0
+dt = 0.01
+cycles = 4
+T_initial = 2.0
+
+[phaseonium]
+phi_hot = 1.8
+T_hot = 60.0
+phi_cold = 2.2
+T_cold = 0.1
+
+[cavity]
+mass = 1.0
+surface = 1.0
+min_length = 1.0
+max_length = 1.1
+alpha = 3.1415926535
+acceleration = 0.0
+external_force = 3.0
+
+[stroke_time]
+isochore = 600
+adiabatic = 2000
+
+[samplings]
+isochore = 150
+adiabatic = 50
+
+[loading]
+load_state = false
+filename = "state"
+past_cycles = 0

@@ -8,7 +8,7 @@ Simulation 2 - 15D \
 dims = 15
 omega = 5.0
 dt = 0.01
-cycles = 4
+cycles = 1
 T_initial = 2.0
 
 [phaseonium]
@@ -37,4 +37,4 @@ adiabatic = 50
 [loading]
 load_state = true
 filename = "state"
-past_cycles = 2
+past_cycles = 4
