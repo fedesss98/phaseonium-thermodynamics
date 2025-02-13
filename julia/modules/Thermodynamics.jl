@@ -214,19 +214,29 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
     end
     
     t = 0
-    i = 2
-    while i <= sampling_steps
-        if direction * c2.length >= direction * l_samplings[i]
+    i = j = 2
+    stop1 = stop2 = false
+    while i <= sampling_steps || j <= sampling_steps
+        
+        if i <= sampling_steps && direction * c1.length >= direction * l_samplings[i]
             systems[i] = ρ
             cavity_lengths[i] = [c1.length, c2.length]
             verbose > 2 && update(iter)
             i += 1
+        elseif i > sampling_steps
+            stop1 = true
         end
-        
+        if j <= sampling_steps && direction * c2.length >= direction * l_samplings[j]
+            cavity_lengths[j] = [c1.length, c2.length]
+            j += 1
+        elseif j > sampling_steps
+            stop2 = true
+        end
         ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
-            ρ, [c1, c2], Δt, t, alloc, π_parts
+            ρ, [c1, c2], Δt, t, alloc, π_parts, stop1, stop2
         )
         t += Δt
+        
     end
     
     if verbose > 1

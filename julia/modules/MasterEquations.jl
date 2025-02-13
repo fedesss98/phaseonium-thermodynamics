@@ -181,7 +181,7 @@ function _adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_pa
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts)
+function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, stop1, stop2)
     U, idd = allocated_op
     n, π_a, π_ad = π_parts
     
@@ -193,11 +193,16 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts)
     a1 = c1.acceleration
     a2 = c2.acceleration
     
-    # Move the cavity wall
-    for c in (c1, c2)
-        c.length += 0.5 * c.acceleration * Δt²
+    # Move the cavity walls
+    if !stop1
+        c1.length += 0.5 * c1.acceleration * Δt²
         # Constrain the cavity movement blocking the walls
-        c.length = clamp(c.length, c.l_min, c.l_max)
+        c1.length = clamp(c1.length, c1.l_min, c1.l_max)
+    end
+    if !stop2
+        c2.length += 0.5 * c2.acceleration * Δt²
+        # Constrain the cavity movement blocking the walls
+        c2.length = clamp(c2.length, c2.l_min, c2.l_max)
     end
     
     
@@ -218,8 +223,22 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts)
     p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
     p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
     
-    c1.acceleration = (p1 * c1.surface - c1.external_force) / c1.mass
-    c2.acceleration = (p2 * c2.surface - c2.external_force) / c2.mass
+    a1 = (p1 * c1.surface - c1.external_force) / c1.mass
+    a2 = (p2 * c2.surface - c2.external_force) / c2.mass
+    
+    
+    if norm(a1) <= 0.05 || norm(a2) <= 0.05
+        error("One cavity is almost still")
+    end
+    if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0 
+        error("One cavity changed direction!")
+    end
+    c1.acceleration = a1
+    c2.acceleration = a2
+
+    if c1.acceleration == 0 || c2.acceleration == 0
+        error("One cavity stopped")
+    end
 
     return ρ, c1, c2
 end
