@@ -219,13 +219,23 @@ function load_or_create(dir, config)
         println("Starting with a new cascade system (contracted)")
         ω = config["cavity"]["alpha"] / config["cavity"]["min_length"]
         ρt = complex(thermalstate(config["dims"], ω, config["T_initial"]))
-        println("Initial Temperature of the Cavity:
+        println("Initial Temperature of the Cavity: \
             $(Measurements.temperature(ρt, ω))")
         cavity1 = _create_cavity(config)
         cavity2 = _create_cavity(config)
         state = StrokeState(Matrix(kron(ρt, ρt)), cavity1, cavity2)
     end
     return state
+end
+
+function check_cutoff(system, ndims)
+    # Jump Operators
+    a = BosonicOperators.destroy(ndims)
+    ad = BosonicOperators.create(ndims)
+    # Check number of photons and cutoff
+    ρ₁ = partial_trace(real(system), (ndims, ndims), 1)
+    println("Average Photons: $(tr(ρ₁ * ad*a))")
+    println("Last Element $(ρ₁[end])")
 end
 
 function bosonic_operators(Ω, Δt, ndims)
@@ -260,6 +270,10 @@ function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, sa
     
     # state.ρ = real(chop!(stroke_evolution[end]))
     state.ρ = stroke_evolution[end]
+    # Jump Operators
+    n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
+    # Print number of photons
+    println("Average Photons: $(tr(state.ρ * kron(n, n)))")
     return state, stroke_evolution
 end
 
