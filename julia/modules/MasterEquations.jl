@@ -227,7 +227,7 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, stop1, 
     a2 = (p2 * c2.surface - c2.external_force) / c2.mass
     
     
-    if norm(a1) <= 0.05 || norm(a2) <= 0.05
+    if norm(a1) <= 0.01 || norm(a2) <= 0.01
         error("One cavity is almost still")
     end
     if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0 
