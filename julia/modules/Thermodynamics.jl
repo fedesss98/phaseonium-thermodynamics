@@ -174,7 +174,6 @@ end
 
 
 function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10, verbose=1)
-    verbose > 0 && println("Adiabatic Stroke")
 
     # Operators are defined on one subspace
     dims = Int(sqrt(size(ρ)[1]))
@@ -209,6 +208,11 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
     
     cavity_lengths = [[c1.length, c2.length] for _ in 1:sampling_steps]
     
+    if verbose > 0
+        process = is_expanding ? "Expansion" : "Contraction"
+        println("Adiabatic $process")
+    end
+
     if verbose > 2 
         iter = ProgressBar(total=sampling_steps)
     end

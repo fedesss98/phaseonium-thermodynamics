@@ -227,17 +227,20 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, stop1, 
     a2 = (p2 * c2.surface - c2.external_force) / c2.mass
     
     
-    if norm(a1) <= 0.01 || norm(a2) <= 0.01
-        error("One cavity is almost still")
+    if norm(a1) <= 0.02 || norm(a2) <= 0.02
+        process = a1 > 0 ? "Expansion" : "Contraction"
+        error("One cavity is almost still during $process")
     end
-    if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0 
-        error("One cavity changed direction!")
+    if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0
+        process = a1 > 0 ? "Expansion" : "Contraction"
+        error("One cavity changed direction during $process!")
     end
     c1.acceleration = a1
     c2.acceleration = a2
 
     if c1.acceleration == 0 || c2.acceleration == 0
-        error("One cavity stopped")
+        process = a1 > 0 ? "Expansion" : "Contraction"
+        error("One cavity stopped during $process")
     end
 
     return ρ, c1, c2
