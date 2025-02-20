@@ -1,8 +1,4 @@
-include("../modules/OpticalCavity.jl")
-include("../modules/Thermodynamics.jl")
-include("../modules/Phaseonium.jl")
-include("../modules/BosonicOperators.jl")
-include("../modules/Measurements.jl")
+
 
 using LinearAlgebra
 using SparseArrays
@@ -44,9 +40,10 @@ function init(dir)
     α0 = config["cavity"]["alpha"]
     l_min = config["cavity"]["min_length"]
     l_max = config["cavity"]["max_length"]
-    expanding_force = config["cavity"]["external_force"]
-    cavity1 = Cavity(mass, surface, l_min, l_max, α0, expanding_force)
-    cavity2 = Cavity(mass, surface, l_min, l_max, α0, expanding_force)
+    expanding_force = config["cavity"]["expanding_force"]
+    compressing_force = config["cavity"]["compressing_force"]
+    cavity1 = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
+    cavity2 = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
     ω_max = α0 / l_min
     ω_min = α0 / l_max
     

@@ -205,8 +205,9 @@ function _create_cavity(config)
     α0 = config["cavity"]["alpha"]
     l_min = config["cavity"]["min_length"]
     l_max = config["cavity"]["max_length"]
-    expanding_force = config["cavity"]["external_force"]
-    cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force)
+    expanding_force = config["cavity"]["expanding_force"]
+    compressing_force = config["cavity"]["compressing_force"]
+    cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
 end
 
 function load_or_create(dir, config)
@@ -274,6 +275,7 @@ function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, sa
     n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
     # Print number of photons
     println("Average Photons: $(tr(state.ρ * kron(n, n)))")
+
     return state, stroke_evolution
 end
 
@@ -299,7 +301,7 @@ function _adiabatic_stroke(state::StrokeState, ndims, Δt, jumps, samplingssteps
     state.ρ = (stroke_evolution[end])
     state.c₁.length = cavity_motion[end][1]
     state.c₂.length = cavity_motion[end][2]
-    
+    println("$(state.c₁.compressing_force)")
     return state, stroke_evolution, total_time
 end    
 

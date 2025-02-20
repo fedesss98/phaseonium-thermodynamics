@@ -237,7 +237,7 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
             stop2 = true
         end
         ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
-            ρ, [c1, c2], Δt, t, alloc, π_parts, stop1, stop2
+            ρ, [c1, c2], Δt, t, alloc, π_parts, process, stop1, stop2
         )
         t += Δt
         

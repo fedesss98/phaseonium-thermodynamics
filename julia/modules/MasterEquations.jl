@@ -181,7 +181,7 @@ function _adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_pa
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, stop1, stop2)
+function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, process, stop1, stop2)
     U, idd = allocated_op
     n, π_a, π_ad = π_parts
     
@@ -223,23 +223,23 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, stop1, 
     p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
     p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
     
-    a1 = (p1 * c1.surface - c1.external_force) / c1.mass
-    a2 = (p2 * c2.surface - c2.external_force) / c2.mass
+    force1 = process == "Expanding" ? c1.expanding_force : c1.compressing_force
+    force2 = process == "Expanding" ? c2.expanding_force : c2.compressing_force
+
+    a1 = (p1 * c1.surface - force1) / c1.mass
+    a2 = (p2 * c2.surface - force2) / c2.mass
     
     
     if norm(a1) <= 0.02 || norm(a2) <= 0.02
-        process = a1 > 0 ? "Expansion" : "Contraction"
         error("One cavity is almost still during $process")
     end
     if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0
-        process = a1 > 0 ? "Expansion" : "Contraction"
         error("One cavity changed direction during $process!")
     end
     c1.acceleration = a1
     c2.acceleration = a2
 
     if c1.acceleration == 0 || c2.acceleration == 0
-        process = a1 > 0 ? "Expansion" : "Contraction"
         error("One cavity stopped during $process")
     end
 
