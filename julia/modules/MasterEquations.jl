@@ -223,15 +223,15 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, process
     p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
     p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
     
-    force1 = process == "Expanding" ? c1.expanding_force : c1.compressing_force
-    force2 = process == "Expanding" ? c2.expanding_force : c2.compressing_force
+    force1 = process == "Expansion" ? c1.expanding_force : c1.compressing_force
+    force2 = process == "Expansion" ? c2.expanding_force : c2.compressing_force
 
     a1 = (p1 * c1.surface - force1) / c1.mass
     a2 = (p2 * c2.surface - force2) / c2.mass
     
     
     if norm(a1) <= 0.02 || norm(a2) <= 0.02
-        error("One cavity is almost still during $process")
+        error("One cavity is almost still during $process with force $force1/$force2")
     end
     if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0
         error("One cavity changed direction during $process!")

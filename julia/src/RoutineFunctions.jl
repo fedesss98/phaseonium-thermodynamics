@@ -126,7 +126,7 @@ end
 """
 Found by Copilot
 """
-function partial_trace(rho::Matrix{Float64}, dims::Tuple{Int, Int}, keep::Int)
+function partial_trace(rho::Matrix{T}, dims::Tuple{Int, Int}, keep::Int) where {T<:Union{Real, Complex}}
     dim1, dim2 = dims
     if keep == 1
         y = reshape(sum(reshape(rho, dim1, dim2, dim1, dim2), dims=(1, 3)), dim1, dim1)
@@ -301,7 +301,6 @@ function _adiabatic_stroke(state::StrokeState, ndims, Δt, jumps, samplingssteps
     state.ρ = (stroke_evolution[end])
     state.c₁.length = cavity_motion[end][1]
     state.c₂.length = cavity_motion[end][2]
-    println("$(state.c₁.compressing_force)")
     return state, stroke_evolution, total_time
 end    
 
