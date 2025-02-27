@@ -199,14 +199,14 @@ function _check(ρ)
     println("Final Temperature of the System: $(Measurements.temperature(ρ, ω))")
 end
 
-function _create_cavity(config)
-    mass = config["cavity"]["mass"]
-    surface = config["cavity"]["surface"]
-    α0 = config["cavity"]["alpha"]
-    l_min = config["cavity"]["min_length"]
-    l_max = config["cavity"]["max_length"]
-    expanding_force = config["cavity"]["expanding_force"]
-    compressing_force = config["cavity"]["compressing_force"]
+function _create_cavity(cavity_config)
+    mass = cavity_config["mass"]
+    surface = cavity_config["surface"]
+    α0 = cavity_config["alpha"]
+    l_min = cavity_config["min_length"]
+    l_max = cavity_config["max_length"]
+    expanding_force = cavity_config["expanding_force"]
+    compressing_force = cavity_config["compressing_force"]
     cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
 end
 
@@ -222,8 +222,8 @@ function load_or_create(dir, config)
         ρt = complex(thermalstate(config["dims"], ω, config["T_initial"]))
         println("Initial Temperature of the Cavity: \
             $(Measurements.temperature(ρt, ω))")
-        cavity1 = _create_cavity(config)
-        cavity2 = _create_cavity(config)
+        cavity1 = _create_cavity(config["cavity1"])
+        cavity2 = _create_cavity(config["cavity1"])
         state = StrokeState(Matrix(kron(ρt, ρt)), cavity1, cavity2)
     end
     return state

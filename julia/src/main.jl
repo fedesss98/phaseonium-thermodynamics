@@ -34,18 +34,9 @@ function init(dir)
     
     global T_initial = config["T_initial"]
     
-    # Create a Cavity
-    mass = config["cavity"]["mass"]
-    surface = config["cavity"]["surface"]
-    α0 = config["cavity"]["alpha"]
-    l_min = config["cavity"]["min_length"]
-    l_max = config["cavity"]["max_length"]
-    expanding_force = config["cavity"]["expanding_force"]
-    compressing_force = config["cavity"]["compressing_force"]
-    cavity1 = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
-    cavity2 = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
-    ω_max = α0 / l_min
-    ω_min = α0 / l_max
+    # Find max and min frequencies
+    ω_max = config["cavity1"]["alpha"] / cavity1["l_min"]
+    ω_min = config["cavity1"]["alpha"] / cavity1["l_max"]
     
     # The system starts contracted, where the frequency is maximum
     ρt = thermalstate(NDIMS, ω_max, T_initial)
