@@ -218,12 +218,14 @@ function load_or_create(dir, config)
         state = deserialize("$dir/$(filename)_$(cycles)C.jl")
     else
         println("Starting with a new cascade system (contracted)")
-        ω = config["cavity"]["alpha"] / config["cavity"]["min_length"]
-        ρt = complex(thermalstate(config["dims"], ω, config["T_initial"]))
+        ω1 = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]
+        ω2 = config["cavity2"]["alpha"] / config["cavity2"]["min_length"]
+        ρt1 = complex(thermalstate(config["dims"], ω, config["T_initial"]))
+        ρt2 = complex(thermalstate(config["dims"], ω, config["T_initial"]))
         println("Initial Temperature of the Cavity: \
             $(Measurements.temperature(ρt, ω))")
         cavity1 = _create_cavity(config["cavity1"])
-        cavity2 = _create_cavity(config["cavity1"])
+        cavity2 = _create_cavity(config["cavity2"])
         state = StrokeState(Matrix(kron(ρt, ρt)), cavity1, cavity2)
     end
     return state

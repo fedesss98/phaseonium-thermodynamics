@@ -16,7 +16,7 @@ using .Phaseonium
 using .BosonicOperators
 using .Measurements
 
-include("./RoutineFunctions.jl")
+includet("./RoutineFunctions.jl")
 
 function init(dir)
     config = ""
@@ -35,8 +35,8 @@ function init(dir)
     global T_initial = config["T_initial"]
     
     # Find max and min frequencies
-    ω_max = config["cavity1"]["alpha"] / cavity1["l_min"]
-    ω_min = config["cavity1"]["alpha"] / cavity1["l_max"]
+    ω_max = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]
+    ω_min = config["cavity1"]["alpha"] / config["cavity1"]["max_length"]
     
     # The system starts contracted, where the frequency is maximum
     ρt = thermalstate(NDIMS, ω_max, T_initial)
