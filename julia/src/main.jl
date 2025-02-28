@@ -9,6 +9,7 @@ using TOML
 # Saving the output matrix
 using Serialization
 using NPZ
+using Revise
 
 using .OpticalCavity
 using .Thermodynamics
@@ -32,7 +33,7 @@ function init(dir)
     global Ω = config["omega"]
     global Δt = config["dt"]
     
-    global T_initial = config["T_initial"]
+    global T_initial = config["T1_initial"]
     
     # Find max and min frequencies
     ω_max = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]

@@ -213,7 +213,7 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
         println("Adiabatic $process")
     end
 
-    if verbose > 2 
+    if verbose > 2
         iter = ProgressBar(total=sampling_steps)
     end
     
@@ -240,6 +240,17 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
             ρ, [c1, c2], Δt, t, alloc, π_parts, process, stop1, stop2
         )
         t += Δt
+
+        if i % 10 == 0
+            if process == "Expansion"
+                force1 = c1.expanding_force
+                force2 = c2.expanding_force
+            else
+                force1 = c1.compressing_force
+                force2 = c2.compressing_force
+            end
+            println("f1:$force1 - f2:$force2\na1:$(c1.acceleration) - a2:$(c2.acceleration)")
+        end
         
     end
     

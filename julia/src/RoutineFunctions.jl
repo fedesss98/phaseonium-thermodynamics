@@ -220,13 +220,13 @@ function load_or_create(dir, config)
         println("Starting with a new cascade system (contracted)")
         ω1 = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]
         ω2 = config["cavity2"]["alpha"] / config["cavity2"]["min_length"]
-        ρt1 = complex(thermalstate(config["dims"], ω, config["T_initial"]))
-        ρt2 = complex(thermalstate(config["dims"], ω, config["T_initial"]))
-        println("Initial Temperature of the Cavity: \
-            $(Measurements.temperature(ρt, ω))")
+        ρt1 = complex(thermalstate(config["dims"], ω1, config["T1_initial"]))
+        ρt2 = complex(thermalstate(config["dims"], ω2, config["T2_initial"]))
+        println("Initial Temperature of the Cavities: \
+            $(Measurements.temperature(ρt1, ω1)) - $(Measurements.temperature(ρt2, ω2))")
         cavity1 = _create_cavity(config["cavity1"])
         cavity2 = _create_cavity(config["cavity2"])
-        state = StrokeState(Matrix(kron(ρt, ρt)), cavity1, cavity2)
+        state = StrokeState(Matrix(kron(ρt1, ρt2)), cavity1, cavity2)
     end
     return state
 end
@@ -259,7 +259,7 @@ end
 function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps)
     stroke_evolution = Thermodynamics.phaseonium_stroke_2(
         state.ρ, time, bosonic, ga, gb; 
-        sampling_steps=samplingssteps, verbose=2)
+        sampling_steps=samplingssteps, verbose=1)
 
     ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
     ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
@@ -274,9 +274,9 @@ function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, sa
     # state.ρ = real(chop!(stroke_evolution[end]))
     state.ρ = stroke_evolution[end]
     # Jump Operators
-    n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
+    # n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
     # Print number of photons
-    println("Average Photons: $(tr(state.ρ * kron(n, n)))")
+    # println("Average Photons: $(tr(state.ρ * kron(n, n)))")
 
     return state, stroke_evolution
 end
@@ -287,7 +287,7 @@ function _adiabatic_stroke(state::StrokeState, ndims, Δt, jumps, samplingssteps
     cavity_motion, 
     total_time = Thermodynamics.adiabatic_stroke_2(
         state.ρ, [state.c₁, state.c₂], Δt, jumps;
-        sampling_steps=samplingssteps, verbose=2)
+        sampling_steps=samplingssteps, verbose=1)
 
     ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
     ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]

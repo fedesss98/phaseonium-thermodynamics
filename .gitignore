@@ -1,4 +1,7 @@
-visualization
+# Ignore folders with experiments
+cascade_*/
+
+visualization/
 *.png
 *.eps
 *.pdf
