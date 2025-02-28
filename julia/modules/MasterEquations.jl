@@ -104,7 +104,8 @@ end
 
 
 function _free_hamiltonian(ω, n)
-   0.5 * ω * n
+    idd = Matrix{ComplexF64}(I, length(n), length(n))
+    return ω .* (n .+ 0.5 * idd)
 end
 
 
@@ -209,8 +210,8 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, process
     # Update energies
     ω₁ = α0 / c1.length
     ω₂ = α0 / c2.length
-    h1 = 0.5 * ω₁ .* n
-    h2 = 0.5 * ω₂ .* n
+    h1 = ω₁ .* (n .+ 0.5 * idd)
+    h2 = ω₂ .* (n .+ 0.5 * idd)
     h = kron(h1, h2)
     
     # Evolve the System
@@ -234,7 +235,7 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, process
     a1 = (p1 * c1.surface - force1) / c1.mass
     a2 = (p2 * c2.surface - force2) / c2.mass
     
-    println("p1:$p1 - p2:$p2\nf1:$force1/$a1 - f2:$force2/$a2")
+    # println("p1:$p1 - p2:$p2\nf1:$force1/$a1 - f2:$force2/$a2")
     
     if norm(a1) <= 0.01 || norm(a2) <= 0.01
         error(
