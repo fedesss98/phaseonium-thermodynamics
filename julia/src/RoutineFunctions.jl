@@ -338,7 +338,7 @@ end
 PLOTTING
 """
 
-function measure_and_plot(x, y, system_evolution, cavity_evolution, title; α=π)
+function measure_and_plot(x, y, system_evolution, cavity_evolution, label; α=π, g=nothing, title=nothing)
     ys = []
     xs = []
     if x == "Entropy"
@@ -371,13 +371,21 @@ function measure_and_plot(x, y, system_evolution, cavity_evolution, title; α=π
         push!(ys, y)
     end
 
-    g = plot(xs, ys, label="Stroke")
+    if isnothing(g)
+        g = plot(xs, ys, label=label)
+    else
+        plot!(g, xs, ys, label=label)
+    end
         
     # Plot starting point
     scatter!(g, [xs[1]], [ys[1]], label="Start", mc="blue", ms=5, msw=0)
     # Plot ending point
     scatter!(g, [xs[end]], [ys[end]], label="End", mc="red", ms=2.5, msw=0)
-    title!(title)
+    if isnothing(title)
+        title!(label)
+    else
+        title!(title)
+    end
     xlabel!(x_label)
     ylabel!(y_label)
     

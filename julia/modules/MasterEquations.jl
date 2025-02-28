@@ -234,11 +234,17 @@ function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts, process
     a1 = (p1 * c1.surface - force1) / c1.mass
     a2 = (p2 * c2.surface - force2) / c2.mass
     
-    # println("p1:$p1 - p2:$p2\nf1:$force1/$a1 - f2:$force2/$a2")
+    println("p1:$p1 - p2:$p2\nf1:$force1/$a1 - f2:$force2/$a2")
     
-    if norm(a1) <= 0.02 || norm(a2) <= 0.02
-        error("One cavity is almost still during $process " \
-        "with force $force1/$force2 and pressure $p1/$p2")
+    if norm(a1) <= 0.01 || norm(a2) <= 0.01
+        error(
+            "One cavity is almost still during $process \
+            with force $force1/$force2 and pressure $p1/$p2")
+    end
+    if process == "Expansion" && (a1 < 0 || a2 < 0)
+        error("One cavity is going backward during expansion!")
+    elseif process == "Contraction" && (a1 > 0 || a2 > 0)
+        error("One cavity is going forward during contraction!")
     end
     if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0
         error("One cavity changed direction during $process!")

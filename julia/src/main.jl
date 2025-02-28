@@ -19,6 +19,22 @@ using .Measurements
 
 includet("./RoutineFunctions.jl")
 
+
+function print_config(io::IOStream, config)
+    for (key, value) in config
+        println(io, "$key: ")
+        if value isa Dict
+            for (k, v) in value
+                println(io, "  $k: $v")
+            end
+        else
+            println(io, "  $value")
+        end
+    end
+
+end
+
+
 function init(dir)
     config = ""
     try
