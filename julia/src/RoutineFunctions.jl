@@ -320,15 +320,15 @@ function cycle(state, Δt, system_evolutions, cycle_steps, isochore_t, isochore_
     # Adiabatic Expansion
     state, system_evolution, adiabatic_t = _adiabatic_stroke(state, ndims, Δt, [a, ad], adiabatic_samplings)
     append!(system_evolutions, system_evolution)
-    append!(cycle_steps, adiabatic_t)
+    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
     # Isochoric Cooling
     state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings)
     append!(system_evolutions, system_evolution)
-    append!(cycle_steps, Δt*isochore_t)
+    append!(cycle_steps, cycle_steps[end] + Δt*isochore_t)
     # Adiabatic Compression
     state, system_evolution, adiabatic_t = _adiabatic_stroke(state, ndims, Δt, [a, ad], adiabatic_samplings)
     append!(system_evolutions, system_evolution)
-    append!(cycle_steps, adiabatic_t)
+    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
     
     return state, system_evolutions
 end
