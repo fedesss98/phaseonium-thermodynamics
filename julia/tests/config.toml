@@ -1,0 +1,52 @@
+# Configuration File
+
+description = """
+TEST & BENCHMARK
+Fast thermalization - High entanglement: what happens to the efficiency?
+"""
+
+dims = 25
+omega = 5.0
+dt = 0.01
+cycles = 5
+T1_initial = 2.0
+T2_initial = 2.0
+
+[phaseonium]
+phi_hot = 1.9
+T_hot = 20.0
+phi_cold = 2.1
+T_cold = 0.005
+
+[cavity1]
+mass = 1.0
+surface = 1.0
+min_length = 1.0
+max_length = 1.1
+alpha = 3.1415926535
+acceleration = 0.0
+expanding_force = 2.0
+compressing_force = 2.0
+
+[cavity2]
+mass = 1.0
+surface = 1.0
+min_length = 1.0
+max_length = 1.01
+alpha = 3.1415926535
+acceleration = 0.0
+expanding_force = 2.0
+compressing_force = 2.0
+
+[stroke_time]
+isochore = 330
+adiabatic = 2000
+
+[samplings]
+isochore = 50
+adiabatic = 50
+
+[loading]
+load_state = false
+filename = "state"
+past_cycles = 0
