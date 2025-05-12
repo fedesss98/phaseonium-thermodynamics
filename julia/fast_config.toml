@@ -1,0 +1,54 @@
+# Configuration File
+
+[meta]
+
+description = """"""
+dims = 15
+omega = 5.0
+dt = 0.01
+cycles = 5
+T1_initial = 2.0
+T2_initial = 2.0
+
+[variables]
+force1 = 2.0
+force2 = 2.0
+
+[phaseonium]
+phi_hot = 1.25 
+T_hot = 2.5
+phi_cold = 12.0
+T_cold = 1.0
+
+[cavity1]
+mass = 1.0
+surface = 1.0
+min_length = 1.0
+max_length = 1.01
+alpha = 3.1415926535
+acceleration = 0.0
+expanding_force = 2.0
+compressing_force = 2.0
+
+[cavity2]
+mass = 1.0
+surface = 1.0
+min_length = 1.0
+max_length = 1.01
+alpha = 3.1415926535
+acceleration = 0.0
+expanding_force = 2.0
+compressing_force = 2.0
+
+[stroke_time]
+isochore = [5000, 10000, 50000, 100000, 1000000]
+adiabatic = 2000
+
+[samplings]
+isochore = 100
+adiabatic = 50
+
+[loading]
+load_state = false
+filename = "state"
+past_cycles = 0
