@@ -12,23 +12,24 @@ using SparseArrays
 using .MasterEquations
 
 
-function phaseonium_stroke(ρ, time, kraus; sampling_steps=10, verbose=1)
+function phaseonium_stroke(ρ, time, bosonic_operators, coefficients; sampling_steps=10, verbose=1)
     if verbose > 0
         println("Isochoric Stroke")
     end
     silent_evolution_time = div(time, sampling_steps) 
-    
+    ga, gb = coefficients
+    ndims = size(ρ)[1]
     systems = [Matrix(ρ) for _ in 0:sampling_steps]
 
-    verbose > 2 ? iter = ProgressBar(1:sampling_steps) : iter=1:sampling_steps
+    verbose > 1 ? iter = ProgressBar(1:sampling_steps) : iter=1:sampling_steps
     for i in iter
-        ρ = MasterEquations.krausevolve(
-            ρ, kraus, silent_evolution_time
+        ρ = MasterEquations.meqevolve(
+            ρ, bosonic_operators, ga, gb, silent_evolution_time, ndims
         )
         systems[i+1] = ρ
     end
 
-    if verbose > 1
+    if verbose > 2
         g = plot(
             0:sampling_steps, [real(r[2,2]/r[1,1]) for r in systems], 
             label=L"\rho_{11} / \rho_{00}",
@@ -40,9 +41,9 @@ function phaseonium_stroke(ρ, time, kraus; sampling_steps=10, verbose=1)
     return systems
 end
 
-function phaseonium_stroke_2(ρ, time, bosonic_operators, ga, gb; sampling_steps=10, verbose=1)
+function phaseonium_stroke_2(ρ, time, bosonic_operators, ga, gb; sampling_steps=10, verbose=1, io=nothing)
     if verbose > 0
-        println("Isochoric Stroke")
+        println(io, "Isochoric Stroke")
     end
 
     # Preallocate Tensor Bosonic Operators
@@ -114,32 +115,52 @@ function adiabatic_stroke(ρ, time::Int64, Δt::Float64, jumps, cavity, idd, π_
     return systems, cavity_lengths
 end
 
+"""
+Allocate variables---use SparseMatrices where possible
+"""
+function make_cache_adiabatic(jumps, forces)
+    opa, opad = jumps
+    n = opad * opa
+    dims = size(n)[1]
+    identity_matrix = spdiagm(ones(dims))
 
-function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sampling_steps=10, verbose=1)
+    return (;
+        U = spzeros(ComplexF64, dims^2, dims^2),
+        Ud = spzeros(ComplexF64, dims^2, dims^2),
+        temp = zeros(ComplexF64, dims^2, dims^2),
+        idd = identity_matrix,
+        n = n,
+        π_a = opa * opa,
+        π_ad = opad * opad,
+        π_op = Matrix{ComplexF64}(undef, dims, dims),
+        _h = sparse(n .+ 0.5 .* identity_matrix),
+        h1 = spzeros(ComplexF64, dims, dims),
+        h2 = spzeros(ComplexF64, dims, dims),
+        h = spzeros(ComplexF64, dims^2, dims^2),
+        a1 = 0,
+        a2 = 0,
+        p1 = 0,
+        p2 = 0,
+        force1 = forces[1],
+        force2 = forces[2],
+    )
+end
+
+"""
+function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps, process; sampling_steps=10, verbose=1)
     if verbose > 0
         println("Adiabatic Stroke")
     end
     silent_evolution_time = div(time, sampling_steps)
 
     # Operators are defined on one subspace
+    if process == "Expansion"
+        forces = [cavity.expanding_force for cavity in cavities]
+    else
+        forces = [cavity.compressing_force for cavity in cavities]
+    end
     dims = Int(sqrt(size(ρ)[1]))
-    identity_matrix = spdiagm(ones(dims))
-    opa, opad = jumps
-    # Reduce precision
-    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
-    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
-    # Pressure Operator
-    # Decomposed in three parts (constant and rotating)
-    n = opad * opa
-    π_a = opa * opa
-    π_ad = opad * opad
-    π_parts = (n, π_a, π_ad) 
-
-    # Preallocate variables with reduce precision
-    π₁, π₂ = spzeros(ComplexF32, size(n)...), spzeros(ComplexF32, size(n)...)
-    U = spzeros(ComplexF32, size(ρ)...)
-    # ρ = convert(SparseMatrixCSC{ComplexF32, Int64}, ρ)  # Convert real sparse matrix to complex sparse
-    alloc = (U, identity_matrix)
+    cache = make_cache_adiabatic(dims, forces)
     
     systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps + 1)
     systems[1] = ρ
@@ -171,27 +192,13 @@ function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps; sam
     
     return systems, cavity_lengths
 end
+"""
 
+function adiabatic_stroke_2(ρ, cavities, jumps, Δt::Float64, process; sampling_steps=10, verbose=1, io=nothing)
 
-function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10, verbose=1)
-
-    # Operators are defined on one subspace
-    dims = Int(sqrt(size(ρ)[1]))
-    identity_matrix = spdiagm(ones(dims))
-    opa, opad = jumps
-    # Reduce precision
-    opa = convert(SparseMatrixCSC{Float32, Int64}, opa)
-    opad = convert(SparseMatrixCSC{Float32, Int64}, opad)
-    # Pressure Operator
-    # Decomposed in three parts (constant and rotating)
-    n = opad * opa
-    π_a = opa * opa
-    π_ad = opad * opad
-    π_parts = (n, π_a, π_ad) 
-
-    # Preallocate variables with reduce precision
-    U = spzeros(ComplexF32, size(ρ)...)
-    alloc = (U, identity_matrix)
+    # Allocate variables in the cache
+    forces = process == "Expansion" ? [cavity.expanding_force for cavity in cavities] : [cavity.compressing_force for cavity in cavities]
+    cache = make_cache_adiabatic(jumps, forces)
 
     # Initialize system tracking
     systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps)
@@ -202,15 +209,15 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
     c1.acceleration = c2.acceleration = 0  # They start blocked
 
     # Determine expansion/contraction direction
-    is_expanding = c1.l_min == c1.length
-    l_start, l_end, direction = is_expanding ? (c1.l_min, c1.l_max, 1) : (c1.l_max, c1.l_min, -1)
+    l_start = process == "Expansion" ? c1.l_min : c1.l_max
+    l_end = process == "Expansion" ? c1.l_max : c1.l_min
+    direction = process == "Expansion" ?  1 : -1
     l_samplings = collect(range(l_start, stop=l_end, length=sampling_steps))
     
     cavity_lengths = [[c1.length, c2.length] for _ in 1:sampling_steps]
     
     if verbose > 0
-        process = is_expanding ? "Expansion" : "Contraction"
-        println("Adiabatic $process")
+        println(io, "Adiabatic $process")
     end
 
     if verbose > 2
@@ -237,26 +244,20 @@ function adiabatic_stroke_2(ρ, cavities, Δt::Float64, jumps; sampling_steps=10
             stop2 = true
         end
         ρ, c1, c2 = MasterEquations.adiabaticevolve_2(
-            ρ, [c1, c2], Δt, t, alloc, π_parts, process, stop1, stop2
+            ρ, (c1, c2), cache, Δt, t, process, stop1, stop2
         )
         t += Δt
 
-        if i % 10 == 0
-            if process == "Expansion"
-                force1 = c1.expanding_force
-                force2 = c2.expanding_force
-            else
-                force1 = c1.compressing_force
-                force2 = c2.compressing_force
-            end
-            println("f1:$force1 - f2:$force2\na1:$(c1.acceleration) - a2:$(c2.acceleration)")
+        if verbose > 0 && i % 10 == 0
+            force1, force2 = forces
+            println(io, "f1:$force1 - f2:$force2\na1:$(c1.acceleration) - a2:$(c2.acceleration)")
         end
         
     end
     
     if verbose > 1
-        c1_lengths = [l1 for (l1, l2) in cavity_lengths]
-        c2_lengths = [l2 for (l1, l2) in cavity_lengths]
+        c1_lengths = [l1 for (l1, _) in cavity_lengths]
+        c2_lengths = [l2 for (_, l2) in cavity_lengths]
         g = plot(
             1:sampling_steps, c1_lengths, 
             label="Cavity 1 Length",
