@@ -66,8 +66,7 @@ end
 function pressure(ρ, π, idd, α, l, S; s=0)
 
     coefficient = α / (2*l^2*S)
-
-    ω = α / l
+    # ω = α / l
     
     # Pressure Operator
     if s == 1

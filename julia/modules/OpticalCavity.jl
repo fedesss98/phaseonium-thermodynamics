@@ -36,6 +36,9 @@ mutable struct Cavity
 end
 
 # Convenience constructor for static cavity starting from miminum length
+Cavity(m, s, l_min, l_max, α, exp::String, cmp::String) = 
+    Cavity(m, s, l_min, l_min, l_max, α, 0.0, parse(Float64, exp), parse(Float64, cmp))
+
 Cavity(m::Real, s::Real, l_min::Real, l_max::Real, α::Real, exp::Real, cmp::Real) = 
     Cavity(m, s, l_min, l_min, l_max, α, 0.0, exp, cmp)
 
