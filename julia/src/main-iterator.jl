@@ -178,7 +178,6 @@ function cycle_in_dir(dir)
     end
 
     println("\n\n_____________________________")
-    println("Analyzing $dir")
     config, ndims = init(dir)
     
     # Load or create state
