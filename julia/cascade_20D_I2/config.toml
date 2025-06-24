@@ -8,7 +8,7 @@ Simulation 4 - 20D \
 dims = 20
 omega = 5.0
 dt = 0.01
-cycles = 2
+cycles = 1
 T_initial = 2.0
 
 [phaseonium]
@@ -35,6 +35,6 @@ isochore = 150
 adiabatic = 50
 
 [loading]
-load_state = false
+load_state = true
 filename = "state"
-past_cycles = 0
+past_cycles = 2

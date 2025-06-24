@@ -52,6 +52,7 @@ function meqevolve_2(ρ, bosonic_operators, ga, gb, timesteps, ndims)
     return ρ
 end
 
+
 function master_equation(ρ, bosonic_operators, ga, gb, ndims)
     c, cp, s, sd = bosonic_operators
     first_line, second_line = Matrix{ComplexF64}(undef, ndims, ndims), Matrix{ComplexF64}(undef, ndims, ndims)
@@ -104,7 +105,8 @@ end
 
 
 function _free_hamiltonian(ω, n)
-   0.5 * ω * n
+    idd = Matrix{ComplexF64}(I, length(n), length(n))
+    return ω .* (n .+ 0.5 * idd)
 end
 
 
@@ -181,45 +183,86 @@ function _adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_pa
 end
 
 
-function adiabaticevolve_2(ρ, cavities, Δt, t, allocated_op, π_parts)
-    U, idd = allocated_op
-    n, π_a, π_ad = π_parts
+function adiabaticevolve_2(ρ, cavities, cache, Δt, t, process, stop1, stop2)
+    U = cache.U
+    Ud = cache.Ud
+    idd = cache.idd
+    _h = cache._h
+    h1 = cache.h1
+    h2 = cache.h2
+    h = cache.h
+    n = cache.n
+    π_a = cache.π_a
+    π_ad = cache.π_ad
+    π_op = cache.π_op
+    a1 = cache.a1
+    a2 = cache.a2
+    p1 = cache.p1
+    p2 = cache.p2
+    force1 = cache.force1
+    force2 = cache.force2
+    temp = cache.temp
     
     Δt² = Δt^2  
 
     c1, c2 = cavities
     α0 = c1.α
-
-    a1 = c1.acceleration
-    a2 = c2.acceleration
     
-    # Move the cavity wall
-    for c in (c1, c2)
-        c.length += 0.5 * c.acceleration * Δt²
+    # Move the cavity walls
+    if !stop1
+        c1.length += 0.5 * c1.acceleration * Δt²
         # Constrain the cavity movement blocking the walls
-        c.length = clamp(c.length, c.l_min, c.l_max)
+        c1.length = clamp(c1.length, c1.l_min, c1.l_max)
+    end
+    if !stop2
+        c2.length += 0.5 * c2.acceleration * Δt²
+        # Constrain the cavity movement blocking the walls
+        c2.length = clamp(c2.length, c2.l_min, c2.l_max)
     end
     
     
     # Update energies
     ω₁ = α0 / c1.length
     ω₂ = α0 / c2.length
-    h1 = 0.5 * ω₁ .* n
-    h2 = 0.5 * ω₂ .* n
-    h = kron(h1, h2)
+    @. h1 = ω₁ * _h
+    @. h2 = ω₂ * _h
+    kron!(h, h1, h2)
     
     # Evolve the System
-    U .= padm(-im .* h)
-    ρ = U * ρ * U'
+    # U .= padm(-im .* h)
+    U .= Expokit.padm(-im * h)  # Use in-place matrix exponential
+    Ud .= U'
+    mul!(temp, U, ρ) # ρ_temp = U * ρ
+    mul!(ρ, temp, Ud) # ρ = ρ_temp * Ud
     
     # Update pressure and acceleration
-    π₁ = (2 * n + idd)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
-    π₂ = (2 * n + idd)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
-    p1 = Measurements.pressure(ρ, π₁, idd, α0, c1.length, c1.surface; s=1)
-    p2 = Measurements.pressure(ρ, π₂, idd, α0, c2.length, c2.surface; s=2)
+    @. π_op = (2 * n + idd)  - (π_a * exp(-2*im*ω₁*t)) - (π_ad * exp(2*im*ω₁*t))
+    temp = kron(π_op, idd)
+    p1 = Measurements.pressure(ρ, temp, idd, α0, c1.length, c1.surface)
+    @. π_op = (2 * n + idd)  - (π_a * exp(-2*im*ω₂*t)) - (π_ad * exp(2*im*ω₂*t))
+    temp = kron(idd, π_op)
+    p2 = Measurements.pressure(ρ, temp, idd, α0, c2.length, c2.surface)
+
+    a1 = (p1 * c1.surface - force1) / c1.mass
+    a2 = (p2 * c2.surface - force2) / c2.mass
     
-    c1.acceleration = (p1 * c1.surface - c1.external_force) / c1.mass
-    c2.acceleration = (p2 * c2.surface - c2.external_force) / c2.mass
+    # println("p1:$p1 - p2:$p2\nf1:$force1/$a1 - f2:$force2/$a2")
+    
+    if norm(a1) <= 0.01 || norm(a2) <= 0.01
+        error(
+            "One cavity is almost still during $process \
+            with forces f1 $force1/f2 $force2 and pressures p1 $p1/p2 $p2")
+    end
+    if process == "Expansion" && (a1 < 0 || a2 < 0)
+        error("One cavity is going backward during expansion!")
+    elseif process == "Compression" && (a1 > 0 || a2 > 0)
+        error("One cavity is going forward during contraction!")
+    end
+    if c1.acceleration * a1 < 0 || c2.acceleration * a2 < 0
+        error("One cavity changed direction during $process!")
+    end
+    c1.acceleration = a1
+    c2.acceleration = a2
 
     return ρ, c1, c2
 end

@@ -2,19 +2,12 @@
 Try a phaseonium stroke
 """
 
-using LinearAlgebra
-using ProgressBars
-using Plots
+using Revise
 
-include("./src/RoutineFunctions.jl")
-include("./modules/modules_interface.jl")
-include("./modules/MasterEquations.jl")
+includet("./modules/modules_interface.jl")
+includet("./src/RoutineFunctions.jl")
+includet("./modules/MasterEquations.jl")
 
-import .BosonicOperators
-import .Phaseonium
-import .Measurements
-import .Thermodynamics
-using .OpticalCavity
 
 function _check(ρ)
     println("System after the stroke:")
@@ -22,84 +15,135 @@ function _check(ρ)
     println("Final Temperature of the System: $(Measurements.temperature(ρ, ω))")
 end
 
-NDIMS = 25
-Ω = 1.0
-Δt = 1e-2
+function plot_stroke_state(system_evolution, cavity_evolution, α0)
+    temperatures = []
+    entropies = []
+    for (i, ρ) in enumerate(system_evolution)
+        local ω = α0 / cavity_evolution[i]
+        t = Measurements.temperature(ρ, ω)
+        ent = Measurements.entropy_vn(ρ)
+        
+        push!(temperatures, t)
+        push!(entropies, ent)
+    end
 
-T_initial = 1.0
-T_final = 1.5
-
-# Create a Cavity
-α0 = 2*π
-l0 = 1.0
-cavity = Cavity(1.0, 1.0, l0, α0, 0, 0.05)
-ω = α0 / l0
-
-ρt = thermalstate(NDIMS, ω, T_initial)
-
-# Create Phaseonium atoms
-ϕ = π/2
-α = Phaseonium.alpha_from_temperature(T_final, ϕ) 
-
-η = Phaseonium.densitymatrix(α, ϕ)
-
-ga, gb = Phaseonium.dissipationrates(α, ϕ)
-println(
-    "Apparent Temperature carried by Phaseonium atoms: 
-    $(Phaseonium.finaltemperature(ga, gb))")
-
-# Define Kraus Operators
-a = BosonicOperators.destroy(NDIMS)
-ad = BosonicOperators.create(NDIMS)
-
-C = BosonicOperators.C(Ω*Δt, NDIMS)
-Cp = BosonicOperators.Cp(Ω*Δt, NDIMS)
-S = BosonicOperators.S(Ω*Δt, NDIMS)
-Sd = BosonicOperators.Sd(Ω*Δt, NDIMS)
-
-E0 = sqrt(1 - ga/2 - gb/2) * identity(NDIMS) 
-E1 = sqrt(ga/2) * C
-E2 = sqrt(ga) * S
-E3 = sqrt(gb/2) * Cp
-E4 = sqrt(gb) * Sd
-
-kraus = [E0, E1, E2, E3, E4]
-
-# Time Evolution loop
-const THERMALIZATION_TIME = 200
-
-#=function h(t, ndims)=#
-#=    a = BosonicOperators.destroy(ndims)=#
-#=    ad = BosonicOperators.create(ndims)=#
-#=    return ad * a=#
-#=end=#
-
-
-system_evolution, cavity_evolution = Thermodynamics.adiabatic_stroke(
-    ρt, THERMALIZATION_TIME, Δt, [a, ad], cavity; sampling_each=10)
-#=system_evolution = Thermodynamics.phaseonium_stroke(ρt, THERMALIZATION_TIME, kraus; sampling_each=100)=#
-
-temperatures = []
-entropies = []
-for (i, ρ) in enumerate(system_evolution)
-    local ω = α0 / cavity_evolution[i]
-    t = Measurements.temperature(ρ, ω)
-    ent = Measurements.entropy_vn(ρ)
-    
-    push!(temperatures, t)
-    push!(entropies, ent)
+    g = plot(entropies, temperatures, label="Stroke")
+    # Plot starting point
+    scatter!(g, [entropies[1]], [temperatures[1]], label="Start", mc="blue", ms=5)
+    # Plot ending point
+    scatter!(g, [entropies[end]], [temperatures[end]], label="End", mc="red", ms=5)
+    title!("Phaseonium Stroke (Isochoric)")
+    xlabel!("Entropy")
+    ylabel!("Temperature")
+    display(g)
 end
 
-g = plot(entropies, temperatures, label="Stroke")
-# Plot starting point
-scatter!(g, [entropies[1]], [temperatures[1]], label="Start", mc="blue", ms=5)
-# Plot ending point
-scatter!(g, [entropies[end]], [temperatures[end]], label="End", mc="red", ms=5)
-title!("Phaseonium Stroke (Isochoric)")
-xlabel!("Entropy")
-ylabel!("Temperature")
-display(g)
 
-println("Press something to exit")
-quit = readline()
+function plot_temperature(system_evolution, cavity_evolution, α0)    
+    temperatures = []
+    for (i, ρ) in enumerate(system_evolution)
+        local ω = α0 / cavity_evolution[i]
+        t = Measurements.temperature(ρ, ω)
+        
+        push!(temperatures, t)
+    end
 
+    g = plot(temperatures, label="Temperature")
+    title!("Temperature Evolution")
+    xlabel!("Time")
+    ylabel!("Temperature")
+
+    return g
+end
+
+
+function cascade_evolution(thermalizationtime, ρt, α0, bosonic_operators, cavity, ga, gb)
+    # system_evolution, cavity_evolution = Thermodynamics.adiabatic_stroke(
+    #     ρt, thermalizationtime, Δt, [a, ad], cavity; sampling_each=10)
+    system_evolution = Thermodynamics.phaseonium_stroke_2(
+        ρt, thermalizationtime, bosonic_operators, ga, gb; sampling_steps=50, verbose=3)
+
+    cavity_evolution = [cavity.length for _ in 1:length(system_evolution)]
+
+    g = plot_temperature(system_evolution, cavity_evolution, α0)
+    savefig(g, "phaseonium_stroke_cascade.png")
+
+    return system_evolution
+end
+
+
+function onesystem_evolution(thermalizationtime, ρt, α0, bosonic_operators, cavity, ga, gb)
+    # system_evolution, cavity_evolution = Thermodynamics.adiabatic_stroke(
+    #     ρt, thermalizationtime, Δt, [a, ad], cavity; sampling_each=10)
+    system_evolution = Thermodynamics.phaseonium_stroke(
+        ρt, thermalizationtime, bosonic_operators, [ga, gb]; sampling_steps=50, verbose=3)
+
+    cavity_evolution = [cavity.length for _ in 1:length(system_evolution)]
+
+    g = plot_temperature(system_evolution, cavity_evolution, α0)
+    savefig(g, "phaseonium_stroke.png")
+
+    return system_evolution
+end
+
+
+function main(systems, thermalizationtime)
+    ndims = 15
+    Ω = 1.0
+    Δt = 1e-2
+
+    T_initial = 2.0
+    T_final = 2.5
+
+    # Create a Cavity
+    α0 = 2*π
+    l0 = 1.0
+    cavity = Cavity(1.0, 1.0, l0, α0, 0, 0.05)
+    ω = α0 / l0
+
+    global ρt = thermalstate(ndims, ω, T_initial)
+
+    # Create Phaseonium atoms
+    ϕ = π/1.1
+    α = Phaseonium.alpha_from_temperature(T_final, ϕ, ω)
+    println("Phaseonium α: $α < $(sqrt((1+cos(ϕ))/(3+cos(ϕ))))")
+
+    η = Phaseonium.densitymatrix(α, ϕ)
+
+    ga, gb = Phaseonium.dissipationrates(α, ϕ)
+    println(
+        "Apparent Temperature carried by Phaseonium atoms: 
+        $(Phaseonium.finaltemperature(ω, ga, gb))")
+
+    # Define Kraus Operators
+    identity_op = I(ndims)
+    a = BosonicOperators.destroy(ndims)
+    ad = BosonicOperators.create(ndims)
+
+    C = BosonicOperators.C(Ω*Δt, ndims)
+    Cp = BosonicOperators.Cp(Ω*Δt, ndims)
+    S = BosonicOperators.S(Ω*Δt, ndims)
+    Sd = BosonicOperators.Sd(Ω*Δt, ndims)
+
+    E0 = sqrt(1 - ga/2 - gb/2) * identity(ndims)
+    E1 = sqrt(ga/2) * C
+    E2 = sqrt(ga) * S
+    E3 = sqrt(gb/2) * Cp
+    E4 = sqrt(gb) * Sd
+
+    kraus = [E0, E1, E2, E3, E4]
+
+    if systems == 1
+        println("One system evolution")
+        system_evolution = onesystem_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], cavity, ga, gb)
+    else
+        println("Cascade evolution")
+        ρt = Matrix(kron(ρt, ρt))
+        system_evolution = cascade_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], cavity, ga, gb)
+    end
+
+    return system_evolution
+    
+end
+
+main(1, 1000)
