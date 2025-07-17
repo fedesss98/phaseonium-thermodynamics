@@ -88,7 +88,7 @@ end
 
 
 function main(systems, thermalizationtime)
-    ndims = 15
+    ndims = 25
     Ω = 1.0
     Δt = 1e-2
 
@@ -104,7 +104,7 @@ function main(systems, thermalizationtime)
     global ρt = thermalstate(ndims, ω, T_initial)
 
     # Create Phaseonium atoms
-    ϕ = π/1.1
+    ϕ = π/2.1
     α = Phaseonium.alpha_from_temperature(T_final, ϕ, ω)
     println("Phaseonium α: $α < $(sqrt((1+cos(ϕ))/(3+cos(ϕ))))")
 
@@ -146,4 +146,4 @@ function main(systems, thermalizationtime)
     
 end
 
-main(1, 1000)
+main(1, 10)

@@ -57,9 +57,9 @@ function master_equation(ρ, bosonic_operators, ga, gb, ndims)
     c, cp, s, sd = bosonic_operators
     first_line, second_line = Matrix{ComplexF64}(undef, ndims, ndims), Matrix{ComplexF64}(undef, ndims, ndims)
     # Dissipators
-    first_line = 0.5 * D(c, ρ) + D(sd, ρ)
+    first_line = 0.5 * D(c, ρ) + D(s, ρ)
 
-    second_line = 0.5 * D(cp, ρ) + D(s, ρ)
+    second_line = 0.5 * D(cp, ρ) + D(sd, ρ)
     
     return ga .* first_line .+ gb .* second_line
 end
