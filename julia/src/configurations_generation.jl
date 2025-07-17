@@ -9,7 +9,7 @@ function read_csv_file(config)
     csv_file = "simulations/simulations_ledger.csv"
     csv = DataFrame()
     try
-        csv = CSV.read(csv_file, DataFrame, header=[1,2]) 
+        csv = CSV.read(csv_file, DataFrame, header=1) 
     catch e
         println("CSV file error: $e")
     end
@@ -166,6 +166,7 @@ function generate_configurations(dir="./"; config_file="")
         end
 
         append!(configs, config_row)
+        push!(csv, config_row, promote=true)
     end
 
     println("$(skipped) existing configurations were skipped.")
@@ -173,7 +174,7 @@ function generate_configurations(dir="./"; config_file="")
 
     # Save CSV if there are new configs
     if nrow(configs) > 0
-        CSV.write("simulations/simulations_ledger.csv", configs; append=true)
+        CSV.write("simulations/simulations_ledger.csv", csv)
     else
         println("No new configurations to add.")
     end

@@ -250,7 +250,7 @@ function main_iterator()
     println("New version created $(now())")
     CSV_FILE = "./simulations/simulations_ledger.csv";
 
-    csv = CSV.read(CSV_FILE, DataFrame, header=[1,2]);
+    csv = CSV.read(CSV_FILE, DataFrame, header=1);
     dirs = ["simulations/simulation_$n" for n in csv[!, "meta_name"]];
 
     println("There are $(nrow(csv)) simulation files.")
