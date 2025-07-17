@@ -397,7 +397,7 @@ function measure_and_plot(x, y, system_evolution, cavity_evolution, label; α=π
 end
 
 
-function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x_min=0, x_max=1000)
+function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x_min=0, x_max=1000, y_min=nothing, y_max=nothing)
 
     function _rectangle(x, w, h_up, h_down)
         Shape([
@@ -411,8 +411,12 @@ function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x
     heating_distance = 2 * (isochore_samplings+adiabatic_samplings)
     isochore_strokes = 1:heating_distance:length(ys)
     adiabatic_strokes = isochore_samplings+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
-    y_max = maximum(ys) + 0.1 * maximum(ys)
-    y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
+    if y_max === nothing
+        y_max = maximum(ys) + 0.1 * maximum(ys)
+    end
+    if y_min === nothing    
+        y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
+    end
     for left in isochore_strokes
         plot!(g, _rectangle(left, isochore_samplings+1, y_max, y_min), fillcolor=:red, alpha=0.05, label=false)
         left_cooling = left+isochore_samplings+adiabatic_samplings+1
