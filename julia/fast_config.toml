@@ -3,10 +3,10 @@
 [meta]
 
 description = """"""
-dims = 15
+dims = 15 
 omega = 5.0
 dt = 0.01
-cycles = 5
+cycles = 3
 T1_initial = 2.0
 T2_initial = 2.0
 
@@ -15,9 +15,9 @@ force1 = 2.0
 force2 = 2.0
 
 [phaseonium]
-phi_hot = 1.25 
+phi_hot = [1.18, 1.175, 1.17]
 T_hot = 2.5
-phi_cold = 12.0
+phi_cold = [6.0, 12.0, 1000.0]
 T_cold = 1.0
 
 [cavity1]
@@ -41,7 +41,7 @@ expanding_force = 2.0
 compressing_force = 2.0
 
 [stroke_time]
-isochore = [5000, 10000, 50000, 100000, 1000000]
+isochore = 40000
 adiabatic = 2000
 
 [samplings]
