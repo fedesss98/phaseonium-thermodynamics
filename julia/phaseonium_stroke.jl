@@ -57,31 +57,21 @@ function plot_temperature(system_evolution, cavity_evolution, α0)
 end
 
 
-function cascade_evolution(thermalizationtime, ρt, α0, bosonic_operators, cavity, ga, gb)
+function cascade_evolution(thermalizationtime, ρt, α0, bosonic_operators, ga, gb)
     # system_evolution, cavity_evolution = Thermodynamics.adiabatic_stroke(
     #     ρt, thermalizationtime, Δt, [a, ad], cavity; sampling_each=10)
     system_evolution = Thermodynamics.phaseonium_stroke_2(
         ρt, thermalizationtime, bosonic_operators, ga, gb; sampling_steps=50, verbose=3)
 
-    cavity_evolution = [cavity.length for _ in 1:length(system_evolution)]
-
-    g = plot_temperature(system_evolution, cavity_evolution, α0)
-    savefig(g, "phaseonium_stroke_cascade.png")
-
     return system_evolution
 end
 
 
-function onesystem_evolution(thermalizationtime, ρt, α0, bosonic_operators, cavity, ga, gb)
+function onesystem_evolution(thermalizationtime, ρt, α0, bosonic_operators, ga, gb)
     # system_evolution, cavity_evolution = Thermodynamics.adiabatic_stroke(
     #     ρt, thermalizationtime, Δt, [a, ad], cavity; sampling_each=10)
     system_evolution = Thermodynamics.phaseonium_stroke(
         ρt, thermalizationtime, bosonic_operators, [ga, gb]; sampling_steps=50, verbose=3)
-
-    cavity_evolution = [cavity.length for _ in 1:length(system_evolution)]
-
-    g = plot_temperature(system_evolution, cavity_evolution, α0)
-    savefig(g, "phaseonium_stroke.png")
 
     return system_evolution
 end
@@ -104,16 +94,17 @@ function main(systems, thermalizationtime)
     global ρt = thermalstate(ndims, ω, T_initial)
 
     # Create Phaseonium atoms
-    ϕ = π/2.1
+    ϕ = π/1.1
     α = Phaseonium.alpha_from_temperature(T_final, ϕ, ω)
     println("Phaseonium α: $α < $(sqrt((1+cos(ϕ))/(3+cos(ϕ))))")
 
     η = Phaseonium.densitymatrix(α, ϕ)
 
     ga, gb = Phaseonium.dissipationrates(α, ϕ)
+    final_temperature = Phaseonium.finaltemperature(ω, ga, gb)
     println(
         "Apparent Temperature carried by Phaseonium atoms: 
-        $(Phaseonium.finaltemperature(ω, ga, gb))")
+        $(final_temperature)")
 
     # Define Kraus Operators
     identity_op = I(ndims)
@@ -135,12 +126,27 @@ function main(systems, thermalizationtime)
 
     if systems == 1
         println("One system evolution")
-        system_evolution = onesystem_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], cavity, ga, gb)
+        system_evolution = onesystem_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], ga, gb)
+        figname = "phaseonium_stroke.png"
     else
         println("Cascade evolution")
         ρt = Matrix(kron(ρt, ρt))
-        system_evolution = cascade_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], cavity, ga, gb)
+        system_evolution = cascade_evolution(thermalizationtime, ρt, α0, [C, Cp, S, Sd], ga, gb)
+        figname = "phaseonium_stroke_cascade.png"
     end
+
+    cavity_evolution = [cavity.length for _ in 1:length(system_evolution)]
+
+    g = plot_temperature(system_evolution, cavity_evolution, α0)
+    times = range(1, length(system_evolution))
+    γ = ga / gb
+    # Thermalization function
+    f(x, γ) = (final_temperature - T_initial) * (1 - exp(-γ * (x - 1))) + T_initial
+    plot!(g, times, f.(times, γ), label="Theoretical Temperature", lc=:red)
+    display(g)
+    println("Press Enter to continue...")
+    readline()
+    savefig(g, figname)
 
     return system_evolution
     
