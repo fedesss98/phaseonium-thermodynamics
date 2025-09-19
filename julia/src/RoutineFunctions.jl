@@ -321,7 +321,7 @@ function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps
         cavity_motion, 
         total_time = Thermodynamics.adiabatic_stroke_1(
             state.ρ, state.c₁, jumps, Δt, process;
-            sampling_steps=samplingssteps, verbose=1, io=io)
+            sampling_steps=samplingssteps, verbose=2, io=io)
             
         append!(state.ρ₁_evolution, stroke_evolution)
         append!(state.c₁_evolution, cavity_motion)
@@ -332,7 +332,7 @@ function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps
         cavity_motion, 
         total_time = Thermodynamics.adiabatic_stroke_2(
             state.ρ, (state.c₁, state.c₂), jumps, Δt, process;
-            sampling_steps=samplingssteps, verbose=1, io=io)
+            sampling_steps=samplingssteps, verbose=3, io=io)
     
         ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
         ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
