@@ -140,6 +140,7 @@ function generate_configurations(dir="./"; config_file="")
 
     configs = DataFrame()
     skipped = 0
+    files_created = []
     for combination in params_combinations
         new_config = deepcopy(config)
         identifier = string(uuid4())[1:10]
@@ -165,6 +166,7 @@ function generate_configurations(dir="./"; config_file="")
             TOML.print(io, new_config)
         end
 
+        push!(files_created, "simulations/simulation_$identifier")
         append!(configs, config_row)
         push!(csv, config_row, promote=true)
     end
@@ -179,5 +181,5 @@ function generate_configurations(dir="./"; config_file="")
         println("No new configurations to add.")
     end
 
-    return params_ranges
+    return files_created, params_ranges
 end

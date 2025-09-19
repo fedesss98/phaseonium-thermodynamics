@@ -141,6 +141,66 @@ function adiabaticevolve(ρ, Δt, timesteps, jumps, cavity, idd, π_parts)
 end
 
 
+function adiabaticevolve_1(ρ, cavity, cache, Δt, t, process, stop)
+    # Unpack cache variables (only those needed for one cavity)
+    U      = cache.U
+    Ud     = cache.Ud
+    idd    = cache.idd
+    _h     = cache._h
+    h      = cache.h1
+    n      = cache.n
+    π_a    = cache.π_a
+    π_ad   = cache.π_ad
+    π_op   = cache.π_op
+    a1     = cache.a1
+    p1     = cache.p1
+    force = cache.force
+    temp   = cache.temp
+
+    Δt² = Δt^2
+    α0  = cavity.α
+
+    # Move the cavity wall if not stopped
+    if !stop
+        cavity.length += 0.5 * cavity.acceleration * Δt²
+        cavity.length = clamp(cavity.length, cavity.l_min, cavity.l_max)
+    end
+
+    # Update energy
+    ω₁ = α0 / cavity.length
+    @. h = ω₁ * _h
+
+    # Evolve the system
+    U  .= Expokit.padm(-im * h)
+    Ud .= U'
+    mul!(temp, U, ρ)
+    mul!(ρ, temp, Ud)
+
+    # Update pressure and acceleration
+    @. π_op = (2 * n + idd) - (π_a * exp(-2im * ω₁ * t)) - (π_ad * exp(2im * ω₁ * t))
+    p1 = Measurements.pressure(ρ, π_op, idd, α0, cavity.length, cavity.surface)
+
+    a1 = (p1 * cavity.surface - force) / cavity.mass
+
+    # Safety checks
+    if norm(a1) <= 1e-12
+        error("Cavity $(cavity.surface)m2 is almost still during $process with force $force and pressure $p1, a =$a1")
+    end
+    if process == "Expansion" && a1 < 0
+        error("Cavity is going backward during expansion!")
+    elseif process == "Compression" && a1 > 0
+        error("Cavity is going forward during contraction!")
+    end
+    if cavity.acceleration * a1 < 0
+        error("Cavity changed direction during $process!")
+    end
+
+    cavity.acceleration = a1
+
+    return ρ, cavity
+end
+
+
 function _adiabaticevolve_2(ρ, cavities, Δt, t, timesteps, allocated_op, π_parts)
     U, idd = allocated_op
     n, π_a, π_ad = π_parts

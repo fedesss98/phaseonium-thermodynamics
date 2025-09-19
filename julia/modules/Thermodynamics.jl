@@ -1,3 +1,4 @@
+
 """
 Implement transformations for Thermodynamic strokes in a cycle
 """
@@ -118,7 +119,30 @@ end
 """
 Allocate variables---use SparseMatrices where possible
 """
-function make_cache_adiabatic(jumps, forces)
+function make_cache_adiabatic_1(jumps, force)
+    opa, opad = jumps
+    n = opad * opa
+    dims = size(n)[1]
+    identity_matrix = spdiagm(ones(dims))
+
+    return (;
+        U = spzeros(ComplexF64, dims, dims),
+        Ud = spzeros(ComplexF64, dims, dims),
+        temp = zeros(ComplexF64, dims, dims),
+        idd = identity_matrix,
+        n = n,
+        π_a = opa * opa,
+        π_ad = opad * opad,
+        π_op = Matrix{ComplexF64}(undef, dims, dims),
+        _h = sparse(n .+ 0.5 .* identity_matrix),
+        h1 = spzeros(ComplexF64, dims, dims),
+        a1 = 0,
+        p1 = 0,
+        force = force,
+    )
+end
+
+function make_cache_adiabatic_2(jumps, forces)
     opa, opad = jumps
     n = opad * opa
     dims = size(n)[1]
@@ -145,6 +169,7 @@ function make_cache_adiabatic(jumps, forces)
         force2 = forces[2],
     )
 end
+
 
 """
 function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps, process; sampling_steps=10, verbose=1)
@@ -194,11 +219,79 @@ function _adiabatic_stroke_2(ρ, cavities, time::Int64, Δt::Float64, jumps, pro
 end
 """
 
+
+function adiabatic_stroke_1(ρ, cavity, jumps, Δt::Float64, process; sampling_steps=10, verbose=1, io=nothing)
+
+    # Select force depending on process
+    force = process == "Expansion" ? cavity.expanding_force : cavity.compressing_force
+    cache = make_cache_adiabatic_1(jumps, force)  # still pass as vector if cache expects it
+
+    # Initialize system tracking
+    systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps)
+    systems[1] = ρ
+
+    # Setup cavity
+    cavity.acceleration = 0  # starts blocked
+
+    # Determine expansion/contraction direction
+    l_start = process == "Expansion" ? cavity.l_min : cavity.l_max
+    l_end   = process == "Expansion" ? cavity.l_max : cavity.l_min
+    direction = process == "Expansion" ? 1 : -1
+    l_samplings = collect(range(l_start, stop=l_end, length=sampling_steps))
+    
+    cavity_lengths = [cavity.length for _ in 1:sampling_steps]
+    
+    if verbose > 0
+        println(io, "Adiabatic $process")
+    end
+
+    if verbose > 2
+        iter = ProgressBar(total=sampling_steps)
+    end
+    
+    t = 0.0
+    i = 2
+    stop = false
+
+    while i <= sampling_steps
+        if direction * cavity.length >= direction * l_samplings[i]
+            systems[i] = ρ
+            cavity_lengths[i] = cavity.length
+            verbose > 2 && update(iter)
+            i += 1
+        elseif i > sampling_steps
+            stop = true
+        end
+        
+        ρ, cavity = MasterEquations.adiabaticevolve_1(
+            ρ, cavity, cache, Δt, t, process, stop
+        )
+        t += Δt
+
+        if verbose > 0 && i % 10 == 0
+            println(io, "force: $force, acceleration: $(cavity.acceleration)")
+        end
+    end
+    
+    if verbose > 1
+        g = plot(
+            1:sampling_steps, cavity_lengths, 
+            label="Cavity Length",
+            title="Adiabatic Stroke",
+        )
+        display(g)
+    end
+    
+    return systems, cavity_lengths, t
+end
+
+
+
 function adiabatic_stroke_2(ρ, cavities, jumps, Δt::Float64, process; sampling_steps=10, verbose=1, io=nothing)
 
     # Allocate variables in the cache
     forces = process == "Expansion" ? [cavity.expanding_force for cavity in cavities] : [cavity.compressing_force for cavity in cavities]
-    cache = make_cache_adiabatic(jumps, forces)
+    cache = make_cache_adiabatic_2(jumps, forces)
 
     # Initialize system tracking
     systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps)

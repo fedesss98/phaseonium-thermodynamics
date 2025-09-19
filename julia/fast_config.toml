@@ -3,45 +3,45 @@
 [meta]
 
 description = """"""
-dims = 15 
-omega = 5.0
+dims = 25 
+omega = 1.0
 dt = 0.01
 cycles = 3
-T1_initial = 2.0
-T2_initial = 2.0
+T1_initial = 0.05
+T2_initial = 0.0
 
 [variables]
 force1 = 2.0
 force2 = 2.0
 
 [phaseonium]
-phi_hot = [1.18, 1.175, 1.17]
-T_hot = 2.5
-phi_cold = [6.0, 12.0, 1000.0]
-T_cold = 1.0
+phi_hot = 1.8
+T_hot = 0.08
+phi_cold = 6.0
+T_cold = 0.01
 
 [cavity1]
 mass = 1.0
-surface = 1.0
-min_length = 1.0
-max_length = 1.01
+surface = 100000.0
+min_length = 50000.0
+max_length = 51000.0
 alpha = 3.1415926535
 acceleration = 0.0
-expanding_force = 2.0
-compressing_force = 2.0
+expanding_force = [1e-12, 1e-11, 1e-13, 1e-14, 1e-10]
+compressing_force = 0.01
 
 [cavity2]
-mass = 1.0
+mass = 0.0
 surface = 1.0
 min_length = 1.0
 max_length = 1.01
-alpha = 3.1415926535
+alpha = 0
 acceleration = 0.0
 expanding_force = 2.0
 compressing_force = 2.0
 
 [stroke_time]
-isochore = 40000
+isochore = 50000
 adiabatic = 2000
 
 [samplings]

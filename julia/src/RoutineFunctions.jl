@@ -2,7 +2,6 @@
 Various utility functions to work with interacting Cavities-Phaseoniums
 """
 
-
 using LinearAlgebra
 using QuantumOptics
 using SuiteSparseGraphBLAS
@@ -179,16 +178,31 @@ end
 mutable struct StrokeState{T<:Complex}
     ρ::Matrix{T}
     c₁::Cavity
-    c₂::Cavity
+    c₂::Union{Cavity, Nothing}
     ρ₁_evolution::Vector{Matrix{T}}
     ρ₂_evolution::Vector{Matrix{T}}
     c₁_evolution::Vector{Float64}
     c₂_evolution::Vector{Float64}
 
-    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Complex} = new{T}(ρ, c1, c2, [], [], [], [])
-    
-    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Complex} = new{T}(ρ, c1, nothing, [], [], [], [])
+    # Two-cavity constructor
+    function StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Complex}
+        new{T}(
+            ρ, c1, c2,
+            Vector{Matrix{T}}(undef, 0), Vector{Matrix{T}}(undef, 0),
+            Float64[], Float64[]
+        )
+    end
+
+    # One-cavity constructor
+    function StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Complex}
+        new{T}(
+            ρ, c1, nothing,
+            Vector{Matrix{T}}(undef, 0), Vector{Matrix{T}}(undef, 0),
+            Float64[], Float64[]
+        )
+    end
 end
+
 
 
 function _check(ρ)
@@ -217,16 +231,22 @@ function load_or_create(dir, config)
         println("Loading file $dir/$(filename)_$(cycles)C.jl")
         state = deserialize("$dir/$(filename)_$(cycles)C.jl")
     else
-        println("Starting with a new cascade system (contracted)")
+        # println("Starting with a new cascade system (contracted)")
         ω1 = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]
-        ω2 = config["cavity2"]["alpha"] / config["cavity2"]["min_length"]
         ρt1 = complex(thermalstate(config["meta"]["dims"], ω1, config["meta"]["T1_initial"]))
-        ρt2 = complex(thermalstate(config["meta"]["dims"], ω2, config["meta"]["T2_initial"]))
-        println("Initial Temperature of the Cavities: \
-            $(Measurements.temperature(ρt1, ω1)) - $(Measurements.temperature(ρt2, ω2))")
         cavity1 = _create_cavity(config["cavity1"])
-        cavity2 = _create_cavity(config["cavity2"])
-        state = StrokeState(Matrix(kron(ρt1, ρt2)), cavity1, cavity2)
+        ω2 = config["cavity2"]["alpha"] / config["cavity2"]["min_length"]
+        if ω2 == 0 
+            # println("Initial Temperature of the Cavity: \
+            #   $(Measurements.temperature(ρt1, ω1))")
+            state = StrokeState(Matrix(ρt1), cavity1)
+        else
+            ρt2 = complex(thermalstate(config["meta"]["dims"], ω2, config["meta"]["T2_initial"]))
+            cavity2 = _create_cavity(config["cavity2"])
+            # println("Initial Temperature of the Cavities: \
+            #     $(Measurements.temperature(ρt1, ω1)) - $(Measurements.temperature(ρt2, ω2))")
+            state = StrokeState(Matrix(kron(ρt1, ρt2)), cavity1, cavity2)
+        end
     end
     return state
 end
@@ -257,20 +277,32 @@ end
 """
 
 function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps, io)
-    stroke_evolution = Thermodynamics.phaseonium_stroke_2(
-        state.ρ, time, bosonic, ga, gb; 
-        sampling_steps=samplingssteps, verbose=1, io=io)
+    if state.c₂ === nothing
+        # Single system evolution
+        stroke_evolution = Thermodynamics.phaseonium_stroke(
+            state.ρ, time, bosonic, [ga, gb]; sampling_steps=50, verbose=1)
 
-    ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
-    ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
-    c₁_lengths = [state.c₁.length for _ in stroke_evolution]
-    c₂_lengths = [state.c₂.length for _ in stroke_evolution]
+        c₁_lengths = [state.c₁.length for _ in stroke_evolution]
+
+        append!(state.ρ₁_evolution, stroke_evolution)
+        append!(state.c₁_evolution, c₁_lengths)
+    else
+        # Two cavities evolution
+        stroke_evolution = Thermodynamics.phaseonium_stroke_2(
+            state.ρ, time, bosonic, ga, gb; 
+            sampling_steps=samplingssteps, verbose=1, io=io)
     
-    append!(state.ρ₁_evolution, ρ₁_evolution)
-    append!(state.ρ₂_evolution, ρ₂_evolution)
-    append!(state.c₁_evolution, c₁_lengths)
-    append!(state.c₂_evolution, c₂_lengths)
-    
+        ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
+        ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
+        c₁_lengths = [state.c₁.length for _ in stroke_evolution]
+        c₂_lengths = [state.c₂.length for _ in stroke_evolution]
+        
+        append!(state.ρ₁_evolution, ρ₁_evolution)
+        append!(state.ρ₂_evolution, ρ₂_evolution)
+        append!(state.c₁_evolution, c₁_lengths)
+        append!(state.c₂_evolution, c₂_lengths)
+    end
+
     # state.ρ = real(chop!(stroke_evolution[end]))
     state.ρ = stroke_evolution[end]
     # Jump Operators
@@ -283,26 +315,41 @@ end
 
 
 function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps, process, io)
-    stroke_evolution, 
-    cavity_motion, 
-    total_time = Thermodynamics.adiabatic_stroke_2(
-        state.ρ, (state.c₁, state.c₂), jumps, Δt, process;
-        sampling_steps=samplingssteps, verbose=1, io=io)
-
-    ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
-    ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
-    c₁_lengths = [l1 for (l1, _) in cavity_motion]
-    c₂_lengths = [l2 for (_, l2) in cavity_motion]
+    println("State C2 = $(state.c₂)")
+    if state.c₂ === nothing
+        stroke_evolution, 
+        cavity_motion, 
+        total_time = Thermodynamics.adiabatic_stroke_1(
+            state.ρ, state.c₁, jumps, Δt, process;
+            sampling_steps=samplingssteps, verbose=1, io=io)
+            
+        append!(state.ρ₁_evolution, stroke_evolution)
+        append!(state.c₁_evolution, cavity_motion)
+        
+        state.c₁.length = cavity_motion[end]
+    else
+        stroke_evolution, 
+        cavity_motion, 
+        total_time = Thermodynamics.adiabatic_stroke_2(
+            state.ρ, (state.c₁, state.c₂), jumps, Δt, process;
+            sampling_steps=samplingssteps, verbose=1, io=io)
     
-    append!(state.ρ₁_evolution, ρ₁_evolution)
-    append!(state.ρ₂_evolution, ρ₂_evolution)
-    append!(state.c₁_evolution, c₁_lengths)
-    append!(state.c₂_evolution, c₂_lengths)
+        ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
+        ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
+        c₁_lengths = [l1 for (l1, _) in cavity_motion]
+        c₂_lengths = [l2 for (_, l2) in cavity_motion]
+        
+        append!(state.ρ₁_evolution, ρ₁_evolution)
+        append!(state.ρ₂_evolution, ρ₂_evolution)
+        append!(state.c₁_evolution, c₁_lengths)
+        append!(state.c₂_evolution, c₂_lengths)
+        
+        state.c₁.length = cavity_motion[end][1]
+        state.c₂.length = cavity_motion[end][2]
+    end
     
     # state.ρ = real(chop!(stroke_evolution[end]))
     state.ρ = (stroke_evolution[end])
-    state.c₁.length = cavity_motion[end][1]
-    state.c₂.length = cavity_motion[end][2]
     return state, stroke_evolution, total_time
 end    
 
@@ -311,7 +358,12 @@ function cycle(state, Δt, system_evolutions, cycle_steps, isochore_t, isochore_
         ρ, c₁, c₂ = state
         state = StrokeState(Matrix(ρ), c₁, c₂)
     end
-    ndims = Int64(sqrt(size(state.ρ)[1]))  # Dimensions of one cavity
+        
+    if state.c₂ === nothing
+        ndims = Int64(size(state.ρ)[1])
+    else
+        ndims = Int64(sqrt(size(state.ρ)[1]))  # Dimensions of one cavity
+    end
     # Jump Operators
     a = BosonicOperators.destroy(ndims)
     ad = BosonicOperators.create(ndims)
