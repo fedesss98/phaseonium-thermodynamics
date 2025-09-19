@@ -15,7 +15,6 @@ using NPZ
 
 includet("../modules/OpticalCavity.jl")
 includet("../modules/Thermodynamics.jl")
-includet("../modules/MasterEquations.jl")
 includet("../modules/Phaseonium.jl")
 includet("../modules/BosonicOperators.jl")
 includet("../modules/Measurements.jl")
@@ -23,7 +22,6 @@ includet("../modules/Measurements.jl")
 
 using .OpticalCavity
 using .Thermodynamics
-using .MasterEquations
 using .Phaseonium
 using .BosonicOperators
 using .Measurements
@@ -45,6 +43,57 @@ function print_config(io::IOStream, config)
         end
     end
 
+end
+
+
+function onecav_state(dir, config)
+    if config["loading"]["load_state"]
+        filename = config["loading"]["filename"]
+        cycles = config["loading"]["past_cycles"]
+        println("Loading file $dir/$(filename)_$(cycles)C.jl")
+        state = deserialize("$dir/$(filename)_$(cycles)C.jl")
+    else
+        println("Starting with a new cascade system (contracted)")
+        ω1 = config["cavity1"]["alpha"] / config["cavity1"]["min_length"]
+        ρt = complex(thermalstate(config["meta"]["dims"], ω1, config["meta"]["T1_initial"]))
+        println("Initial Temperature of the Cavity: $(Measurements.temperature(ρt1, ω1))")
+        cavity1 = _create_cavity(config["cavity1"])
+        state = StrokeState(Matrix(ρt), cavity1)
+    end
+    return state
+end
+
+
+"""Cycle evolution of one system"""
+function cycle(state, Δt, system_evolutions, cycle_steps, isochore_t, isochore_samplings, adiabatic_t, adiabatic_samplings, io)
+    if state isa Vector
+        ρ, c₁ = state
+        state = StrokeState(Matrix(ρ), c₁, c₂)
+    end
+    ndims = size(state.ρ) # Dimensions of the cavity
+    # Jump Operators
+    a = BosonicOperators.destroy(ndims)
+    ad = BosonicOperators.create(ndims)
+    jumps = (a, ad)
+    
+    # Isochoric Heating
+    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings, io)
+    append!(system_evolutions, system_evolution)
+    append!(cycle_steps, Δt*isochore_t)
+    # Adiabatic Expansion
+    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, jumps, ndims, Δt, adiabatic_samplings, "Expansion", io)
+    append!(system_evolutions, system_evolution)
+    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
+    # Isochoric Cooling
+    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings, io)
+    append!(system_evolutions, system_evolution)
+    append!(cycle_steps, cycle_steps[end] + Δt*isochore_t)
+    # Adiabatic Compression
+    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, jumps, ndims, Δt, adiabatic_samplings, "Compression", io)
+    append!(system_evolutions, system_evolution)
+    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
+    
+    return state, system_evolutions
 end
 
 
@@ -70,9 +119,9 @@ function init(dir; config_file="")
     
     # The system starts contracted, where the frequency is maximum
     ρt = thermalstate(ndims, ω_max, T_initial)
-    # println(
-    #     "Initial Temperature of the Cavity: \
-    #     $(Measurements.temperature(ρt, ω_max))")
+    println(
+        "Initial Temperature of the Cavity: \
+        $(Measurements.temperature(ρt, ω_max))")
     
     # Jump Operators
     global a = BosonicOperators.destroy(ndims)
@@ -86,9 +135,9 @@ function init(dir; config_file="")
     α_h = Phaseonium.alpha_from_temperature(T_hot, ϕ_h, ω_max) 
     
     global ga_h, gb_h = Phaseonium.dissipationrates(α_h, ϕ_h)
-    # println(
-    #     "Apparent Temperature carried by Hot Phaseonium atoms: \
-    #     $(Phaseonium.finaltemperature(ω_max, ga_h, gb_h))")
+    println(
+        "Apparent Temperature carried by Hot Phaseonium atoms: \
+        $(Phaseonium.finaltemperature(ω_max, ga_h, gb_h))")
     
     global bosonic_h = bosonic_operators(Ω, Δt, ndims)
     
@@ -98,9 +147,9 @@ function init(dir; config_file="")
     α_c = Phaseonium.alpha_from_temperature(T_cold, ϕ_c, ω_min) 
     
     global ga_c, gb_c = Phaseonium.dissipationrates(α_c, ϕ_c)
-    # println(
-    #     "Apparent Temperature carried by Cold Phaseonium atoms: \
-    #     $(Phaseonium.finaltemperature(ω_min, ga_c, gb_c))")
+    println(
+        "Apparent Temperature carried by Cold Phaseonium atoms: \
+        $(Phaseonium.finaltemperature(ω_min, ga_c, gb_c))")
     
     global bosonic_c = bosonic_operators(Ω, Δt, ndims);
 
@@ -204,8 +253,6 @@ function cycle_in_dir(dir)
     mkpath(dir * "/visualization")
 
     open(dir * "/report.txt", "a") do io
-        println("Expanding Force: $(config["cavity1"]["expanding_force"])")
-        println("Compressing Force: $(config["cavity1"]["compressing_force"])")
         sim_results = run_simulation(state, config, io, dir)
         state, system_evolution, total_cycle_time, cycle_steps, e = sim_results
         if e == 0
@@ -230,8 +277,8 @@ function firs_fast_cycle()
     try
         # Run a fast cycle to compile the code
         config, ndims = init(".")
-        state = load_or_create('.', config)
-        state.ρ₁_evolution = [] 
+        state = onecav_state('.', config)
+        state.ρ₁_evolution = []
         state.ρ₂_evolution = []
         state.c₁_evolution = []
         state.c₂_evolution = []
@@ -242,7 +289,7 @@ function firs_fast_cycle()
         adiabatic_samplings = config["samplings"]["adiabatic"]
         system_evolution = []
         cycle_steps = []
-        state, system_evolution = Main.cycle(
+        state, system_evolution = cycle(
             state, Δt, system_evolution, cycle_steps, 
             isochore_time, isochore_samplings, adiabatic_time, adiabatic_samplings, stdout);
     finally
@@ -260,7 +307,7 @@ function main_iterator()
     println("There are $(nrow(csv)) simulation files.")
 
     for dir in dirs
-        #print(dir)
+        print(dir)
         cycle_in_dir(dir)
     end
 
@@ -272,5 +319,5 @@ println("Running a fast cycle to compile the file")
 firs_fast_cycle()
 println("Done.")
 
-# main_iterator()
+main_iterator()
 

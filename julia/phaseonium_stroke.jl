@@ -82,19 +82,19 @@ function main(systems, thermalizationtime)
     Ω = 1.0
     Δt = 1e-2
 
-    T_initial = 2.0
-    T_final = 2.5
+    T_initial = 0.01
+    T_final = 0.08
 
     # Create a Cavity
     α0 = 2*π
-    l0 = 1.0
-    cavity = Cavity(1.0, 1.0, l0, α0, 0, 0.05)
+    l0 = 50000.0
+    cavity = Cavity(1.0, 10000.0, l0, α0, 0, 0.05)
     ω = α0 / l0
 
     global ρt = thermalstate(ndims, ω, T_initial)
 
     # Create Phaseonium atoms
-    ϕ = π/1.1
+    ϕ = π/1.5
     α = Phaseonium.alpha_from_temperature(T_final, ϕ, ω)
     println("Phaseonium α: $α < $(sqrt((1+cos(ϕ))/(3+cos(ϕ))))")
 
