@@ -157,18 +157,20 @@ function adiabaticevolve_1(ρ, cavity, cache, Δt, t, process, stop)
     force = cache.force
     temp   = cache.temp
 
-    Δt² = Δt^2
     α0  = cavity.α
 
     # Move the cavity wall if not stopped
     if !stop
-        cavity.length += 0.5 * cavity.acceleration * Δt²
-        cavity.length = clamp(cavity.length, cavity.l_min, cavity.l_max)
+        Δt² = Δt * Δt
+        # Update the position within the boundaries of the cavity
+        cavity.length = clamp(
+            cavity.length + 0.5 * cavity.acceleration * Δt², 
+            cavity.l_min, cavity.l_max)
     end
 
     # Update energy
-    ω₁ = α0 / cavity.length
-    @. h = ω₁ * _h
+    ω = α0 / cavity.length
+    @. h = ω * _h
 
     # Evolve the system
     U  .= Expokit.padm(-im * h)
@@ -177,23 +179,22 @@ function adiabaticevolve_1(ρ, cavity, cache, Δt, t, process, stop)
     mul!(ρ, temp, Ud)
 
     # Update pressure and acceleration
-    @. π_op = (2 * n + idd) - (π_a * exp(-2im * ω₁ * t)) - (π_ad * exp(2im * ω₁ * t))
+    two_ωt = 2 * ω * t
+    exp_neg = exp(-im * two_ωt)
+    exp_pos = exp(im * two_ωt)
+    @. π_op = (2 * n + idd) - (π_a * exp_neg) - (π_ad * exp_pos)
     p1 = Measurements.pressure(ρ, π_op, idd, α0, cavity.length, cavity.surface)
 
     a1 = (p1 * cavity.surface - force) / cavity.mass
 
-    # Safety checks
-    if norm(a1) <= 1e-12
-        error("Cavity $(cavity.surface)m2 is almost still during $process with force $force and pressure $p1, a =$a1")
+    # Safety checks (consider removing in production for speed)
+    @assert norm(a1) > 1e-12 "Cavity $(cavity.surface)m² is almost still during $process"
+    if process == "Expansion"
+        @assert a1 >= 0 "Cavity is going backward during expansion!"
+    else
+        @assert a1 <= 0 "Cavity is going forward during contraction!"
     end
-    if process == "Expansion" && a1 < 0
-        error("Cavity is going backward during expansion!")
-    elseif process == "Compression" && a1 > 0
-        error("Cavity is going forward during contraction!")
-    end
-    if cavity.acceleration * a1 < 0
-        error("Cavity changed direction during $process!")
-    end
+    @assert cavity.acceleration * a1 >= 0 "Cavity changed direction during $process!"
 
     cavity.acceleration = a1
 

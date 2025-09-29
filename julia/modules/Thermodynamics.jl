@@ -222,32 +222,29 @@ end
 
 function adiabatic_stroke_1(ρ, cavity, jumps, Δt::Float64, process; sampling_steps=10, verbose=1, io=nothing)
 
+    expansion_process = process == "Expansion"
     # Select force depending on process
-    force = process == "Expansion" ? cavity.expanding_force : cavity.compressing_force
+    force = expansion_process ? cavity.expanding_force : cavity.compressing_force
     cache = make_cache_adiabatic_1(jumps, force)  # still pass as vector if cache expects it
 
     # Initialize system tracking
     systems = Vector{Matrix{ComplexF64}}(undef, sampling_steps)
-    systems[1] = ρ
+    systems[1] = copy(ρ)
 
     # Setup cavity
     cavity.acceleration = 0  # starts blocked
 
     # Determine expansion/contraction direction
-    l_start = process == "Expansion" ? cavity.l_min : cavity.l_max
-    l_end   = process == "Expansion" ? cavity.l_max : cavity.l_min
-    direction = process == "Expansion" ? 1 : -1
-    l_samplings = collect(range(l_start, stop=l_end, length=sampling_steps))
+    l_start = expansion_process ? cavity.l_min : cavity.l_max
+    l_end   = expansion_process ? cavity.l_max : cavity.l_min
+    direction = expansion_process ? 1 : -1
+    l_samplings = range(l_start, stop=l_end, length=sampling_steps)
     
-    cavity_lengths = [cavity.length for _ in 1:sampling_steps]
+    cavity_lengths = Vector{Float64}(undef, sampling_steps)
+    cavity_lengths[1] = cavity.length
     
-    if verbose > 0
-        println(io, "Adiabatic $process")
-    end
-
-    if verbose > 2
-        iter = ProgressBar(total=sampling_steps)
-    end
+    verbose > 0 && println(io, "Adiabatic $process")
+    verbose > 2 && iter = ProgressBar(total=sampling_steps)
     
     t = 0.0
     i = 2
@@ -255,7 +252,7 @@ function adiabatic_stroke_1(ρ, cavity, jumps, Δt::Float64, process; sampling_s
 
     while i <= sampling_steps
         if direction * cavity.length >= direction * l_samplings[i]
-            systems[i] = ρ
+            systems[i] = copy(ρ)
             cavity_lengths[i] = cavity.length
             verbose > 2 && update(iter)
             i += 1
@@ -268,9 +265,8 @@ function adiabatic_stroke_1(ρ, cavity, jumps, Δt::Float64, process; sampling_s
         )
         t += Δt
 
-        if verbose > 0 && i % 10 == 0
-            println(io, "force: $force, acceleration: $(cavity.acceleration)")
-        end
+        verbose > 0 && i % 10 == 0 && println(io, "force: $force, acceleration: $(cavity.acceleration)")
+
     end
     
     if verbose > 1

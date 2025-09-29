@@ -304,7 +304,7 @@ function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, sa
     end
 
     # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = stroke_evolution[end]
+    state.ρ = copy(stroke_evolution[end])
     # Jump Operators
     # n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
     # Print number of photons
@@ -349,7 +349,7 @@ function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps
     end
     
     # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = (stroke_evolution[end])
+    state.ρ = copy(stroke_evolution[end])
     return state, stroke_evolution, total_time
 end    
 
