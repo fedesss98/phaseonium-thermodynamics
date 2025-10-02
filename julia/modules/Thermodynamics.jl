@@ -244,7 +244,7 @@ function adiabatic_stroke_1(ρ, cavity, jumps, Δt::Float64, process; sampling_s
     cavity_lengths[1] = cavity.length
     
     verbose > 0 && println(io, "Adiabatic $process")
-    verbose > 2 && iter = ProgressBar(total=sampling_steps)
+    verbose > 2 && (iter = ProgressBar(total=sampling_steps))
     
     t = 0.0
     i = 2
