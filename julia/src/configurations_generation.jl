@@ -14,19 +14,26 @@ function read_csv_file(config)
         println("CSV file error: $e")
     end
     if isempty(csv)
-        df_headers = Dict{String, Any}()
-        # Reconstruct the header
-        for (category, subdict) in config
-            if category != "variables"
-                for (key, value) in subdict
-                    df_headers["$(category)_$(key)"] = [category, key]
-                end
-            end
+      df_headers = Dict{String, Any}()
+      # Reconstruct the header
+      for (category, subdict) in config
+        if category != "variables"
+          for (key, value) in subdict
+              df_headers["$(category)_$(key)"] = "$(category)_$(key)"
+          end
         end
-        # Add the identifier
-        df_headers["meta_name"] = ["meta", "name"]
-        # Write the header
-        CSV.write(csv_file, DataFrame(df_headers); writeheader=false)
+      end
+      # Add the identifier
+      df_headers["meta_name"] = "meta_name"
+      println(values(df_headers))
+      # Write the header
+      CSV.write(csv_file, DataFrame(df_headers); writeheader=false)
+      # Load it again as formatted DataFrame
+      try
+          csv = CSV.read(csv_file, DataFrame, header=1) 
+      catch e
+          println("CSV file error: $e")
+      end
     end
     return csv
 end
@@ -123,11 +130,11 @@ end
 function generate_configurations(dir="./"; config_file="")
     config = isempty(config_file) ? "/config.toml" : config_file
     try
-        config = TOML.parsefile(dir * config)
+      config = TOML.parsefile(dir * config)
     catch e
-        println("Error reading configuration: $e")
+      println("Error reading configuration: $e")
     else
-        println(config["meta"]["description"])
+      println(config["meta"]["description"])
     end
 
     csv = read_csv_file(config)
@@ -142,33 +149,41 @@ function generate_configurations(dir="./"; config_file="")
     skipped = 0
     files_created = []
     for combination in params_combinations
-        new_config = deepcopy(config)
-        identifier = string(uuid4())[1:10]
-
-        for (name, value) in zip(params_names, combination)
-            update_config!(new_config, name, value)
+      new_config = deepcopy(config)
+      identifier = string(uuid4())[1:10]
+      if haskey(config["meta"], "name")
+        if length(params_combinations) == 1
+          identifier = config["meta"]["name"]
+        else
+          identifier = config["meta"]["name"] * identifier
         end
-        # Remove the variables field from the config
-        delete!(new_config, "variables")
-        # Flatten the config dict as a DataFrame row 
-        config_row = flatten_toml(identifier, new_config)
+      end
 
-        # Check if this combination already exists
-        if config_exists(csv, config_row)
-            skipped += 1
-            continue
-        end
-        
-        # Create output directory
-        mkpath("simulations/simulation_$identifier")
-        # Save configuration file
-        open("simulations/simulation_$identifier/config.toml", "w") do io
-            TOML.print(io, new_config)
-        end
+      for (name, value) in zip(params_names, combination)
+        update_config!(new_config, name, value)
+      end
+      # Remove the variables field from the config
+      delete!(new_config, "variables")
+      # Flatten the config dict as a DataFrame row 
+      config_row = flatten_toml(identifier, new_config)
 
-        push!(files_created, "simulations/simulation_$identifier")
-        append!(configs, config_row)
-        push!(csv, config_row, promote=true)
+      # Check if this combination already exists
+      if config_exists(csv, config_row)
+        skipped += 1
+        continue
+      end
+      
+      # Create output directory
+      output_dir = haskey(config["meta"], "name") ? identifier : "simulation_$identifier"
+      mkpath("simulations/$(output_dir)")
+      # Save configuration file
+      open("simulations/$(output_dir)/config.toml", "w") do io
+        TOML.print(io, new_config)
+      end
+
+      push!(files_created, "simulations/simulation_$identifier")
+      append!(configs, config_row)
+      push!(csv, config_row, promote=true)
     end
 
     println("$(skipped) existing configurations were skipped.")
@@ -176,9 +191,9 @@ function generate_configurations(dir="./"; config_file="")
 
     # Save CSV if there are new configs
     if nrow(configs) > 0
-        CSV.write("simulations/simulations_ledger.csv", csv)
+      CSV.write("simulations/simulations_ledger.csv", csv)
     else
-        println("No new configurations to add.")
+      println("No new configurations to add.")
     end
 
     return files_created, params_ranges
