@@ -224,6 +224,17 @@ function _create_cavity(cavity_config)
     cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
 end
 
+"""
+    load_or_create(dir, config)
+Create a Density Matrix based on `config` file.
+To create a one-cavity system, set `ω2` to zero,
+else it will create a two-cavity product state with specified params.
+If the `loading` section of the `config` file is provided,
+it will try to load a state from a previous run.
+
+# Returns
+- `state`: a StrokeState struct containing the system Density Matrix and its evolution history.
+"""
 function load_or_create(dir, config)
     if config["loading"]["load_state"]
         filename = config["loading"]["filename"]
@@ -317,11 +328,15 @@ end
 function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps, process, io)
     println("State C2 = $(state.c₂)")
     if state.c₂ === nothing
+        # We suppose the number of photons is kept constant throughout the adiabatic process
+        n = jumps[2] * jumps[1]  # ad*a
+        avg_n = real(tr(n * state.ρ))
         stroke_evolution, 
         cavity_motion, 
-        total_time = Thermodynamics.adiabatic_stroke_1(
-            state.ρ, state.c₁, jumps, Δt, process;
-            sampling_steps=samplingssteps, verbose=2, io=io)
+        cavity_velocities,
+        total_time = Thermodynamics.adiabatic_stroke_ode(
+            state.ρ, avg_n, state.c₁;
+            sampling_steps=samplingssteps, max_time=1e12, verbose=2, io=io)
             
         append!(state.ρ₁_evolution, stroke_evolution)
         append!(state.c₁_evolution, cavity_motion)
