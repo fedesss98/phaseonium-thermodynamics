@@ -336,7 +336,7 @@ function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps
         cavity_velocities,
         total_time = Thermodynamics.adiabatic_stroke_ode(
             state.ρ, avg_n, state.c₁;
-            sampling_steps=samplingssteps, max_time=1e12, verbose=2, io=io)
+            sampling_steps=samplingssteps, max_time=1e6, verbose=2, io=io)
             
         append!(state.ρ₁_evolution, stroke_evolution)
         append!(state.c₁_evolution, cavity_motion)

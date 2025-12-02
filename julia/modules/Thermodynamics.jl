@@ -472,13 +472,13 @@ function adiabatic_stroke_ode(
     u_eval = sol(t_eval)
     
     # Reconstruct Outputs
-    lengths = [u[1] for u in u_eval.u]
-    velocities = [u[2] for u in u_eval.u]
+    cavity_lengths = [u[1] for u in u_eval.u]
+    cavity_velocities = [u[2] for u in u_eval.u]
     # Reconstruct States
-    states = [rho_initial for _ in t_eval]
+    systems = [rho_initial for _ in t_eval]
 
     if verbose > 1
-        g = plot(t_eval, lengths,
+        g = plot(t_eval, cavity_lengths,
                  label="Cavity Lengths", title="Adiabatic $process")
         display(g)
     end
