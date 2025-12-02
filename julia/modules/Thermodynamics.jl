@@ -377,18 +377,19 @@ function piston_ode!(du, u, p, t)
     v = u[2]
     avg_n = p[1]
     F_ext = p[2]
-    sys = p[3] # Unpack system parameters
+    α = p[3]
+    m = p[4]
 
     # Radiation Force
     # F_rad = -dE/dL = (ħ * α / L^2) * (<n> + 1/2)
     # The +0.5 accounts for vacuum energy pressure
-    F_rad = sys.α0 / L^2 * (avg_n + 0.5)
+    F_rad = α / L^2 * (avg_n + 0.5)
 
     # Net Force (including friction)
     F_net = F_rad - F_ext - γ_damping * v
 
     du[1] = v
-    du[2] = F_net / sys.mass
+    du[2] = F_net / m
 end
 
 
@@ -446,7 +447,7 @@ function adiabatic_stroke_ode(
 
     # Setup ODE Problem
     u0 = [l0, v0]
-    p = [n_conserved, external_force, cavity]
+    p = [avg_n, external_force, cavity.α, cavity.mass]
     t_span = (0.0, max_time)
 
     prob = ODEProblem(piston_ode!, u0, t_span, p)
