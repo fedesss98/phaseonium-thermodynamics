@@ -326,8 +326,8 @@ end
 
 
 function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps, process, io)
-    println("State C2 = $(state.c₂)")
     if state.c₂ === nothing
+        println("Solving one cavity adiabatic ODE...")
         # We suppose the number of photons is kept constant throughout the adiabatic process
         n = jumps[2] * jumps[1]  # ad*a
         avg_n = real(tr(n * state.ρ))

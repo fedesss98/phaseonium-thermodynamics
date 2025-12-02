@@ -255,7 +255,7 @@ function main_iterator()
     CSV_FILE = "./simulations/simulations_ledger.csv";
 
     csv = CSV.read(CSV_FILE, DataFrame, header=1);
-    dirs = ["simulations/simulation_$n" for n in csv[!, "meta_name"]];
+    dirs = ["simulations/$n" for n in csv[!, "meta_name"]];
 
     println("There are $(nrow(csv)) simulation files.")
 
