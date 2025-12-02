@@ -379,6 +379,7 @@ function piston_ode!(du, u, p, t)
     F_ext = p[2]
     α = p[3]
     m = p[4]
+    γ_damping = p[5]
 
     # Radiation Force
     # F_rad = -dE/dL = (ħ * α / L^2) * (<n> + 1/2)
@@ -444,10 +445,11 @@ function adiabatic_stroke_ode(
     condition(u, t, integrator) = u[1] - target_l
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition, affect!)
-
+2
     # Setup ODE Problem
     u0 = [l0, v0]
-    p = [avg_n, external_force, cavity.α, cavity.mass]
+    γ_damping = 0
+    p = [avg_n, external_force, cavity.α, cavity.mass, γ_damping]
     t_span = (0.0, max_time)
 
     prob = ODEProblem(piston_ode!, u0, t_span, p)
