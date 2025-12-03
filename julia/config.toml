@@ -1,52 +1,53 @@
 # Configuration File
 
 [meta]
-
-description = """
-Fast Simulation - just to compile the code
-"""
-
-dims = 10
-omega = 5.0
+name = "2_ode_adiabatic_friction"
+description = """"""
+dims = 350 
+omega = 1.0
 dt = 0.01
-cycles = 30
-T1_initial = 2.0
-T2_initial = 2.0
+cycles = 3
+T1_initial = 0.05
+T2_initial = 0.0
+
+[variables]
+force1 = 2.0
+force2 = 2.0
 
 [phaseonium]
-phi_hot = 1.9
-T_hot = 2.5
-phi_cold = 2.1
-T_cold = 1.0
+phi_hot = 1.8
+T_hot = 0.08
+phi_cold = 6.0
+T_cold = 0.01
 
 [cavity1]
-mass = 1.0
-surface = 1.0
-min_length = 1.0
-max_length = 1.01
-alpha = 3.1415926535
-friction = 0.0
+mass = 1000000000000000
+surface = 5000.0
+min_length = 5000.0
+max_length = 5500.0
+alpha = 0.31415926535
+friction = [0.0, 0.001, 0.01, 0.1, 0.2]
 acceleration = 0.0
-expanding_force = 2.5
-compressing_force = 2.5
+expanding_force = 1e-12
+compressing_force = 0.01
 
 [cavity2]
-mass = 1.0
+mass = 0.0
 surface = 1.0
 min_length = 1.0
 max_length = 1.01
-alpha = 3.1415926535
-friction = 0.0
+alpha = 0
+friction = 0
 acceleration = 0.0
-expanding_force = 2.5
-compressing_force = 2.5
+expanding_force = 2.0
+compressing_force = 2.0
 
 [stroke_time]
-isochore = 5000
+isochore = 50000
 adiabatic = 2000
 
 [samplings]
-isochore = 50
+isochore = 100
 adiabatic = 50
 
 [loading]

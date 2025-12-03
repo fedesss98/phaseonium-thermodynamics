@@ -49,7 +49,7 @@ end
 
 
 function init(dir; config_file="")
-    config = isempty(config_file) ? "/config.toml" : config_file
+    config = isempty(config_file) ? "/fast_config.toml" : config_file
     try
         config = TOML.parsefile(dir * config)
     catch e
