@@ -181,7 +181,7 @@ function generate_configurations(dir="./"; config_file="")
         TOML.print(io, new_config)
       end
 
-      push!(files_created, "simulations/simulation_$identifier")
+      push!(files_created, "simulations/$(output_dir)")
       append!(configs, config_row)
       push!(csv, config_row, promote=true)
     end
