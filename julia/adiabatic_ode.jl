@@ -143,4 +143,4 @@ p2 = plot(time_steps, P_evolution, label="Pressure P(t)", ylabel="Pressure", xla
 V_evolution = surface .* L_evolution
 p3 = plot(V_evolution, P_evolution, label="Expansion Stroke", xlabel="Volume", ylabel="Pressure", legend=:topright, lw=2)
 
-plot(p1, p2, p3, layout=(3,1), size=(600, 800))julia -e 'import Pkg; Pkg.activate(); Pkg.add("LanguageServer"); Pkg.instantiate();'
+plot(p1, p2, p3, layout=(3,1), size=(600, 800))
