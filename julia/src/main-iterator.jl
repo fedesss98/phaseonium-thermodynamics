@@ -152,7 +152,11 @@ function save_last_cycle(dir, config, system_evolution, state, total_cycle_time,
 
     last_evolution = system_evolution[end-total_cycle_time+1:end]
     ω₁_evolution = [α0 / l1 for l1 in state.c₁_evolution[end-total_cycle_time+1:end]]
-    ω₂_evolution = [α0 / l2 for l2 in state.c₂_evolution[end-total_cycle_time+1:end]]
+    if length(state.c₂_evolution) > 0
+        ω₂_evolution = [α0 / l2 for l2 in state.c₂_evolution[end-total_cycle_time+1:end]]
+    else
+        ω₂_evolution = 0.0
+    end
 
     dict_evolution = Dict(string(i)=>last_evolution[i] for i in eachindex(last_evolution))
     cycle_steps = Vector{Float64}(cycle_steps)
