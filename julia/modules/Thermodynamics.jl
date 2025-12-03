@@ -448,7 +448,7 @@ function adiabatic_stroke_ode(
 2
     # Setup ODE Problem
     u0 = [l0, v0]
-    γ_damping = 0
+    γ_damping = cavity.γ
     p = [avg_n, external_force, cavity.α, cavity.mass, γ_damping]
     t_span = (0.0, max_time)
 
@@ -484,7 +484,7 @@ function adiabatic_stroke_ode(
     end
 
 
-    return systems, cavity_lengths, cavity_velocities, t_eval
+    return systems, cavity_lengths, cavity_velocities, t_eval[end]
 end
 
 

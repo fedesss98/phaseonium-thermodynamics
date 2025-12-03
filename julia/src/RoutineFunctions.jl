@@ -217,11 +217,13 @@ function _create_cavity(cavity_config)
     mass = cavity_config["mass"]
     surface = cavity_config["surface"]
     α0 = cavity_config["alpha"]
+    γ = get(cavity_config, "friction", 0.0)
     l_min = cavity_config["min_length"]
     l_max = cavity_config["max_length"]
     expanding_force = cavity_config["expanding_force"]
     compressing_force = cavity_config["compressing_force"]
-    cavity = Cavity(mass, surface, l_min, l_max, α0, expanding_force, compressing_force)
+    cavity = Cavity(mass, surface, l_min, l_max, α0, γ, expanding_force, compressing_force)
+    return cavity
 end
 
 """
