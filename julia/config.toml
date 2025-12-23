@@ -3,11 +3,11 @@
 [meta]
 name = "2_ode_adiabatic_friction"
 description = """"""
-dims = 350 
+dims = 500
 omega = 1.0
 dt = 0.01
 cycles = 3
-T1_initial = 0.05
+T1_initial = 0.005
 T2_initial = 0.0
 
 [variables]
@@ -16,16 +16,16 @@ force2 = 2.0
 
 [phaseonium]
 phi_hot = 1.8
-T_hot = 0.08
+T_hot = 0.01
 phi_cold = 6.0
-T_cold = 0.01
+T_cold = 0.001
 
 [cavity1]
 mass = 1000000000000000
 surface = 5000.0
-min_length = 5000.0
-max_length = 5500.0
-alpha = 0.31415926535
+min_length = 200.0
+max_length = 250.0
+alpha = 0.031415926535
 friction = [0.0, 0.001, 0.01, 0.1, 0.2]
 acceleration = 0.0
 expanding_force = 1e-12
@@ -43,7 +43,7 @@ expanding_force = 2.0
 compressing_force = 2.0
 
 [stroke_time]
-isochore = 50000
+isochore = 500000
 adiabatic = 2000
 
 [samplings]

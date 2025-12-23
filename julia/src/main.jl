@@ -185,4 +185,4 @@ function firs_fast_cycle()
         isochore_time, isochore_samplings, adiabatic_time, adiabatic_samplings, stdout);
 end
 
-firs_fast_cycle()
+# firs_fast_cycle()

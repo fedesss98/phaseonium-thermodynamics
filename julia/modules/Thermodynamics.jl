@@ -445,7 +445,7 @@ function adiabatic_stroke_ode(
     condition(u, t, integrator) = u[1] - target_l
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition, affect!)
-2
+
     # Setup ODE Problem
     u0 = [l0, v0]
     γ_damping = cavity.γ
