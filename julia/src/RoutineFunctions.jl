@@ -3,8 +3,6 @@ Various utility functions to work with interacting Cavities-Phaseoniums
 """
 
 using LinearAlgebra
-using QuantumOptics
-using SuiteSparseGraphBLAS
 
 function thermalstate(ndims, ω, T; plotdiag::Bool=false)
     dimsrange = 1:ndims
@@ -161,48 +159,6 @@ function is_gaussian_state(ρ, a, ad)
     return is_positive_semi_definite && satisfies_uncertainty_principle
 end
 
-#mutable struct StrokeState{T<:Union{Real,Complex}}
-#    ρ::Matrix{T}
-#    c₁::Cavity
-#    c₂::Cavity
-#    ρ₁_evolution::Vector{Matrix{T}}
-#    ρ₂_evolution::Vector{Matrix{T}}
-#    c₁_evolution::Vector{Float64}
-#    c₂_evolution::Vector{Float64}
-#
-#    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, c2, [], [], [], [])
-#    
-#    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, nothing, [], [], [], [])
-#end
-
-mutable struct StrokeState{T<:Complex}
-    ρ::Matrix{T}
-    c₁::Cavity
-    c₂::Union{Cavity, Nothing}
-    ρ₁_evolution::Vector{Matrix{T}}
-    ρ₂_evolution::Vector{Matrix{T}}
-    c₁_evolution::Vector{Float64}
-    c₂_evolution::Vector{Float64}
-
-    # Two-cavity constructor
-    function StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Complex}
-        new{T}(
-            ρ, c1, c2,
-            Vector{Matrix{T}}(undef, 0), Vector{Matrix{T}}(undef, 0),
-            Float64[], Float64[]
-        )
-    end
-
-    # One-cavity constructor
-    function StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Complex}
-        new{T}(
-            ρ, c1, nothing,
-            Vector{Matrix{T}}(undef, 0), Vector{Matrix{T}}(undef, 0),
-            Float64[], Float64[]
-        )
-    end
-end
-
 
 
 function _check(ρ)
@@ -274,258 +230,43 @@ function check_cutoff(system, ndims)
     println("Last Element $(ρ₁[end])")
 end
 
-function bosonic_operators(Ω, Δt, ndims)
-    
-    C = BosonicOperators.C(Ω*Δt, ndims)
-    Cp = BosonicOperators.Cp(Ω*Δt, ndims)
-    S = BosonicOperators.S(Ω*Δt, ndims)
-    Sd = BosonicOperators.Sd(Ω*Δt, ndims)
-    
-    return [C, Cp, S, Sd]
+"""
+==========
+PHASEONIUM
+==========
+"""
+
+
+"""
+Gives the rates of dissipation appearing in the Phaseonium Master Equation
+"""
+function dissipationrates(α, ϕ)
+    ga = 2*α^2
+    gb = (1 + cos(ϕ))*(1 - α^2)
+    return real(ga), real(gb)
 end
 
 
 """
-===== CYCLE EVOLUTION =====
+Gives the stable apparent temperature carried by Phaseonium atoms
 """
-
-function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps, io)
-    if state.c₂ === nothing
-        # Single system evolution
-        stroke_evolution = Thermodynamics.phaseonium_stroke(
-            state.ρ, time, bosonic, [ga, gb]; sampling_steps=50, verbose=1)
-
-        c₁_lengths = [state.c₁.length for _ in stroke_evolution]
-
-        append!(state.ρ₁_evolution, stroke_evolution)
-        append!(state.c₁_evolution, c₁_lengths)
-    else
-        # Two cavities evolution
-        stroke_evolution = Thermodynamics.phaseonium_stroke_2(
-            state.ρ, time, bosonic, ga, gb; 
-            sampling_steps=samplingssteps, verbose=1, io=io)
-    
-        ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
-        ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
-        c₁_lengths = [state.c₁.length for _ in stroke_evolution]
-        c₂_lengths = [state.c₂.length for _ in stroke_evolution]
-        
-        append!(state.ρ₁_evolution, ρ₁_evolution)
-        append!(state.ρ₂_evolution, ρ₂_evolution)
-        append!(state.c₁_evolution, c₁_lengths)
-        append!(state.c₂_evolution, c₂_lengths)
-    end
-
-    # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = copy(stroke_evolution[end])
-    # Jump Operators
-    # n = BosonicOperators.create(ndims) * BosonicOperators.destroy(ndims)
-    # Print number of photons
-    # println("Average Photons: $(tr(state.ρ * kron(n, n)))")
-
-    return state, stroke_evolution
-end
-
-
-function _adiabatic_stroke(state::StrokeState, jumps, ndims, Δt, samplingssteps, process, io)
-    if state.c₂ === nothing
-        println("Solving one cavity adiabatic ODE...")
-        # We suppose the number of photons is kept constant throughout the adiabatic process
-        n = jumps[2] * jumps[1]  # ad*a
-        avg_n = real(tr(n * state.ρ))
-        stroke_evolution, 
-        cavity_motion, 
-        cavity_velocities,
-        total_time = Thermodynamics.adiabatic_stroke_ode(
-            state.ρ, avg_n, state.c₁;
-            sampling_steps=samplingssteps, max_time=1e6, verbose=2, io=io)
-            
-        append!(state.ρ₁_evolution, stroke_evolution)
-        append!(state.c₁_evolution, cavity_motion)
-        
-        state.c₁.length = cavity_motion[end]
-    else
-        stroke_evolution, 
-        cavity_motion, 
-        total_time = Thermodynamics.adiabatic_stroke_2(
-            state.ρ, (state.c₁, state.c₂), jumps, Δt, process;
-            sampling_steps=samplingssteps, verbose=3, io=io)
-    
-        ρ₁_evolution = [partial_trace(real(ρ), (ndims, ndims), 1) for ρ in stroke_evolution]
-        ρ₂_evolution = [partial_trace(real(ρ), (ndims, ndims), 2) for ρ in stroke_evolution]
-        c₁_lengths = [l1 for (l1, _) in cavity_motion]
-        c₂_lengths = [l2 for (_, l2) in cavity_motion]
-        
-        append!(state.ρ₁_evolution, ρ₁_evolution)
-        append!(state.ρ₂_evolution, ρ₂_evolution)
-        append!(state.c₁_evolution, c₁_lengths)
-        append!(state.c₂_evolution, c₂_lengths)
-        
-        state.c₁.length = cavity_motion[end][1]
-        state.c₂.length = cavity_motion[end][2]
-    end
-    
-    # state.ρ = real(chop!(stroke_evolution[end]))
-    state.ρ = copy(stroke_evolution[end])
-    return state, stroke_evolution, total_time
-end    
-
-function cycle(state, Δt, system_evolutions, cycle_steps, isochore_t, isochore_samplings, adiabatic_t, adiabatic_samplings, io)
-    if state isa Vector
-        ρ, c₁, c₂ = state
-        state = StrokeState(Matrix(ρ), c₁, c₂)
-    end
-        
-    if state.c₂ === nothing
-        ndims = Int64(size(state.ρ)[1])
-    else
-        ndims = Int64(sqrt(size(state.ρ)[1]))  # Dimensions of one cavity
-    end
-    # Jump Operators
-    a = BosonicOperators.destroy(ndims)
-    ad = BosonicOperators.create(ndims)
-    jumps = (a, ad)
-    
-    # Isochoric Heating
-    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_h, ga_h, gb_h, isochore_samplings, io)
-    append!(system_evolutions, system_evolution)
-    append!(cycle_steps, Δt*isochore_t)
-    # Adiabatic Expansion
-    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, jumps, ndims, Δt, adiabatic_samplings, "Expansion", io)
-    append!(system_evolutions, system_evolution)
-    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
-    # Isochoric Cooling
-    state, system_evolution = _phaseonium_stroke(state, ndims, isochore_t, bosonic_c, ga_c, gb_c, isochore_samplings, io)
-    append!(system_evolutions, system_evolution)
-    append!(cycle_steps, cycle_steps[end] + Δt*isochore_t)
-    # Adiabatic Compression
-    state, system_evolution, adiabatic_t = _adiabatic_stroke(state, jumps, ndims, Δt, adiabatic_samplings, "Compression", io)
-    append!(system_evolutions, system_evolution)
-    append!(cycle_steps, cycle_steps[end] + adiabatic_t)
-    
-    return state, system_evolutions
+function finaltemperature(ω, γα, γβ)
+    return - ω / log(γα/γβ)
 end
 
 
 """
-PLOTTING
+Find the parameter ϕ that gives the Apparent Temperature specified, given α
 """
-
-function measure_and_plot(x, y, system_evolution, cavity_evolution, label; α=π, g=nothing, title=nothing)
-    ys = []
-    xs = []
-    if x == "Entropy"
-        x_measurement = Measurements.entropy_vn
-        x_label = x
-    elseif x == "Frequency"
-        _frequency(ρ, ω) = ω
-        x_measurement = _frequency
-        x_label = L"\omega"
-    end
-
-    if y == "Energy"
-        y_measurment = Measurements.avg_E
-        y_label = y
-    elseif y == "n"
-        y_measurment = Measurements.avg_number
-        y_label = L"\langle \hat{n} \rangle"
-    elseif y == "Temperature"
-        y_measurment = Measurements.temperature
-        y_label = y
-    end
-    
-    for (i, ρ) in enumerate(system_evolution)
-        cavity_len = cavity_evolution isa Real ? cavity_evolution : cavity_evolution[i]
-        local ω = α / cavity_len
-        x = real(round(x_measurement(ρ, ω), digits=5))
-        y = real(round(y_measurment(ρ, ω), digits=5))
-        
-        push!(xs, x)
-        push!(ys, y)
-    end
-
-    if isnothing(g)
-        g = plot(xs, ys, label=label)
-    else
-        plot!(g, xs, ys, label=label)
-    end
-        
-    # Plot starting point
-    scatter!(g, [xs[1]], [ys[1]], label="Start", mc="blue", ms=5, msw=0)
-    # Plot ending point
-    scatter!(g, [xs[end]], [ys[end]], label="End", mc="red", ms=2.5, msw=0)
-    if isnothing(title)
-        title!(label)
-    else
-        title!(title)
-    end
-    xlabel!(x_label)
-    ylabel!(y_label)
-    
-    return g
+function phi_from_temperature(T, α, ω)
+    T = T * ω
+    return arccos(2*α^2 * exp(1/T) / (1-α^2) - 1)
 end
 
-
-function plot_strokes_overlays(g, ys, isochore_samplings, adiabatic_samplings; x_min=0, x_max=1000, y_min=nothing, y_max=nothing)
-
-    function _rectangle(x, w, h_up, h_down)
-        Shape([
-                (x, h_down),
-                (x, h_up),
-                (x+w, h_up),
-                (x+w, h_down)
-        ])
-    end
-    
-    heating_distance = 2 * (isochore_samplings+adiabatic_samplings)
-    isochore_strokes = 1:heating_distance:length(ys)
-    adiabatic_strokes = isochore_samplings+adiabatic_samplings:isochore_samplings+adiabatic_samplings:length(ys)
-    if y_max === nothing
-        y_max = maximum(ys) + 0.1 * maximum(ys)
-    end
-    if y_min === nothing    
-        y_min = minimum(ys) > 0 ? minimum(ys) -0.1 * minimum(ys) : minimum(ys) + 0.1 * minimum(ys) 
-    end
-    for left in isochore_strokes
-        plot!(g, _rectangle(left, isochore_samplings+1, y_max, y_min), fillcolor=:red, alpha=0.05, label=false)
-        left_cooling = left+isochore_samplings+adiabatic_samplings+1
-        plot!(g, _rectangle(left_cooling, isochore_samplings+1, y_max, y_min), fillcolor=:blue, alpha=0.05, label=false)
-    end
-    xlims!(x_min, x_max)
-    ylims!(y_min, y_max)
-end
-
-
-function plot_in_time(observable, system_evolution, cavity_evolution, label, title; 
-        g=nothing, α=π, isochore_samplings=1, adiabatic_samplings=1, x_max=1000)
-    temperatures = []
-    if observable == "n"
-        measurement = Measurements.avg_number
-        y_label = L"\langle \hat{n} \rangle"
-    elseif observable == "T"
-        measurement = Measurements.temperature
-        y_label = "Temperature"
-    end
-    
-    for (i, ρ) in enumerate(system_evolution)
-        cavity_len = cavity_evolution isa Real ? cavity_evolution : cavity_evolution[i]
-        local ω = α / cavity_len
-        t = real(round(measurement(ρ, ω), digits=5))
-        push!(temperatures, t)
-    end
-
-    if isnothing(g)
-        # Compose the whole plot with overlayed strokes
-        g = plot(temperatures, label=label)
-        plot_strokes_overlays(g, temperatures, isochore_samplings, adiabatic_samplings)
-    else
-        plot!(temperatures, label=label)
-    end
-    
-    title!(title)
-    xlabel!("Time")
-    ylabel!(y_label)
-
-    return g
-    
+"""
+Find the parameter α that gives the Apparent Temperature specified, given ϕ
+"""
+function alpha_from_temperature(T, ϕ, ω)
+    factor = (1+cos(ϕ)) / (2 * exp(ω/T) + 1 + cos(ϕ)) 
+    return sqrt(factor)
 end
