@@ -27,40 +27,40 @@ Run the evolution of the cavity state step by step throughout the cycle:
 include("./init.jl")
 
 function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, load=false, verbose=false)
-    if load
+  if load
     if process == "heating"
       step = 1
     elseif process == "cooling"
       step = 3
     end
     evolution = deserialize("data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
-        ρ = evolution.ρ
-    else
-        ω0 = cavity.α / cavity.length
-        if isnothing(ρ0) 
-          ρ0 = thermalstate(config.dims, ω0, config.T_initial)
-        end
+    ρ = evolution.ρ
+  else
+    ω0 = cavity.α / cavity.length
+    if isnothing(ρ0)
+      ρ0 = thermalstate(config.dims, ω0, config.T_initial)
+    end
 
     if process == "heating"
-        ϕ = config.phaseonium.ϕ_h
+      ϕ = config.phaseonium.ϕ_h
       α = alpha_from_temperature(config.phaseonium.T_hot, ϕ, ω0)
     elseif process == "cooling"
       ϕ = config.phaseonium.ϕ_c
       α = alpha_from_temperature(config.phaseonium.T_cold, ϕ, ω0)
     end
-        ga, gb = dissipationrates(α, ϕ)
-        kraus = kraus_operators(
-          ga, gb, config.Ω, config.Δt, config.dims)
-        kraus_dag = [k' for k in kraus]
+    ga, gb = dissipationrates(α, ϕ)
+    kraus = kraus_operators(
+      ga, gb, config.Ω, config.Δt, config.dims)
+    kraus_dag = [k' for k in kraus]
 
-        # Check that the Sparse Arrays are usable in this case
-        println("Sparsity in the starting state:")
-        println(count(==(0), ρ0) / length(ρ0))
-        ρ0 = sparse(ρ0)
-        
-        collisions = config.time.isochore
-        ρ, evolution, temperatures = thermalization_stroke(
-            ρ0, kraus, kraus_dag, collisions, config.samplings.isochore, ω0)
+    # Check that the Sparse Arrays are usable in this case
+    println("Sparsity in the starting state:")
+    println(count(==(0), ρ0) / length(ρ0))
+    ρ0 = sparse(ρ0)
+
+    collisions = config.time.isochore
+    ρ, evolution, temperatures = thermalization_stroke(
+      ρ0, kraus, kraus_dag, collisions, config.samplings.isochore, ω0)
 
     if verbose
       g = plot(temperatures)
@@ -69,27 +69,27 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, load=fal
 
     final_t = Phaseonium.Measurements.temperature(ρ, ω0)
     println("Final temperature of the state: $final_t")
-    end
+  end
 
-    return ρ, evolution
+  return ρ, evolution
 end
 
 
 function update_evolution!(
-    evolution, state_evolution, cavity_evolution; 
-    initial_state=nothing, initial_cavity=nothing)
-    # Add to the stroke state the evolution of the state density matrix
-    if isnothing(initial_state)
-        initial_state = evolution.ρ
-    end
-    if isnothing(initial_cavity)
+  evolution, state_evolution, cavity_evolution;
+  initial_state=nothing, initial_cavity=nothing)
+  # Add to the stroke state the evolution of the state density matrix
+  if isnothing(initial_state)
+    initial_state = evolution.ρ
+  end
+  if isnothing(initial_cavity)
     initial_cavity = evolution.c₁.length
-    end
+  end
   pushfirst!(state_evolution, initial_state)
-    append!(evolution.ρ₁_evolution, state_evolution)
-    # Add to the stroke state the evolution of the cavity length
-    prepend!(cavity_evolution, initial_cavity)
-    append!(evolution.c₁_evolution, cavity_evolution)
+  append!(evolution.ρ₁_evolution, state_evolution)
+  # Add to the stroke state the evolution of the cavity length
+  prepend!(cavity_evolution, initial_cavity)
+  append!(evolution.c₁_evolution, cavity_evolution)
   # Update the 'current' state of the system and cavity
   evolution.ρ = state_evolution[end]
   evolution.c₁.length = cavity_evolution[end]
