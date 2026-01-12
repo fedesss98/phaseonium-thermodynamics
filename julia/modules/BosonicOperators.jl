@@ -3,7 +3,7 @@ Bosonic Operators
 """
 module BosonicOperators
 
-export destroy, create, C, Cp, S, Sd, pressure
+export destroy, create, C, Cp, S, Sd, pressure, bosonic_operators
 
 using LinearAlgebra
 using SparseArrays
@@ -67,6 +67,17 @@ function kraus_operators(ρ, θ, ga, gb)
     E4 = sqrt(gb) * Sd(θ, ndims)
 
     return [E0, E1, E2, E3, E4]
+end
+
+
+function bosonic_operators(Ω, Δt, ndims)
+    
+    C = BosonicOperators.C(Ω*Δt, ndims)
+    Cp = BosonicOperators.Cp(Ω*Δt, ndims)
+    S = BosonicOperators.S(Ω*Δt, ndims)
+    Sd = BosonicOperators.Sd(Ω*Δt, ndims)
+    
+    return [C, Cp, S, Sd]
 end
 
 
