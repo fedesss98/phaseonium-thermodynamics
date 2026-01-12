@@ -26,9 +26,14 @@ Run the evolution of the cavity state step by step throughout the cycle:
 
 include("./init.jl")
 
-function thermalize_by_phaseonium(cavity, config; ρ0=nothing, load=false)
+function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, load=false, verbose=false)
     if load
-        evolution = deserialize("data/stepbystep_evolution/state_1_thermalized.jl")
+    if process == "heating"
+      step = 1
+    elseif process == "cooling"
+      step = 3
+    end
+    evolution = deserialize("data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
         ρ = evolution.ρ
     else
         ω0 = cavity.α / cavity.length
@@ -36,8 +41,13 @@ function thermalize_by_phaseonium(cavity, config; ρ0=nothing, load=false)
           ρ0 = thermalstate(config.dims, ω0, config.T_initial)
         end
 
+    if process == "heating"
         ϕ = config.phaseonium.ϕ_h
-        α = alpha_from_temperature(config.T_initial, ϕ, ω0)
+      α = alpha_from_temperature(config.phaseonium.T_hot, ϕ, ω0)
+    elseif process == "cooling"
+      ϕ = config.phaseonium.ϕ_c
+      α = alpha_from_temperature(config.phaseonium.T_cold, ϕ, ω0)
+    end
         ga, gb = dissipationrates(α, ϕ)
         kraus = kraus_operators(
           ga, gb, config.Ω, config.Δt, config.dims)
