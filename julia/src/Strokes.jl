@@ -7,19 +7,6 @@ using ..Measurements
 using ProgressMeter
 using SparseArrays
 
-#mutable struct StrokeState{T<:Union{Real,Complex}}
-#    ρ::Matrix{T}
-#    c₁::Cavity
-#    c₂::Cavity
-#    ρ₁_evolution::Vector{Matrix{T}}
-#    ρ₂_evolution::Vector{Matrix{T}}
-#    c₁_evolution::Vector{Float64}
-#    c₂_evolution::Vector{Float64}
-#
-#    StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, c2, [], [], [], [])
-#    
-#    StrokeState(ρ::Matrix{T}, c1::Cavity) where {T<:Union{Real,Complex}} = new{T}(ρ, c1, nothing, [], [], [], [])
-#end
 
 mutable struct StrokeState{T<:Complex}
     ρ::Matrix{T}
@@ -64,39 +51,41 @@ Evolve the state of a cavity field using the Phaseonium collisional thermal map.
 - `kraus`: Kraus operators C, C', S and S dagger for the map
 - `kraus_dag`: Complex Conjugate of Kraus operators
 - `collisions`: Total number of collisions for the evolution
-- `sampling_time`: Partial times when to save the evolution status
+- `n_samplings`: Number of times in which to save the evolution status
 - `ω`: Frequency of the cavity, used to sample the temperature
 """
-function thermalization_stroke(ρ, kraus, kraus_dag, collisions, sampling_time, ω)
-    # Pre-allocate temperature array
-    num_samples = div(collisions, sampling_time)
-    temperatures = Float64[]
-    evolution = Vector{typeof(ρ)}(undef, num_samples)
-    samplings = 0
-    sizehint!(temperatures, num_samples)
-    
-    @showprogress for k in 1:collisions
-        
-        # --- KRAUS MAP: ρ_new = Σ E_i * ρ * E_i' ---
-        ρ_new = (kraus[1] * ρ) * kraus_dag[1]  # Allocate ρ_new
-        
-        # Add remaining terms
-        for i in eachindex(kraus)[2:end]
-            ρ_new = ρ_new + (kraus[i] * ρ) * kraus_dag[i]
-        end
-        
-        ρ = ρ_new
+function thermalization_stroke(ρ, kraus, kraus_dag, collisions, n_samplings, ω)
+  # Pre-allocate temperature array
+  sampling_times = unique(round.(Int, range(collisions/n_samplings, collisions, length=n_samplings)))
+  n_actual = length(sampling_times)  # Recalculate in case 'unique' removed duplicates
 
-        if k % sampling_time == 0
-            samplings += 1
-            push!(temperatures, Measurements.temperature(ρ, ω))
-            evolution[samplings] = ρ
-            # Clean up tiny numerical noise that might ruin sparsity
-            dropzeros!(ρ) 
-        end
+  temperatures = Vector{Float64}(undef, n_actual)
+  evolution = Vector{typeof(ρ)}(undef, n_actual)
+  save_cursor = 1
+  
+  @showprogress for k in 1:collisions
+      
+    # --- KRAUS MAP: ρ_new = Σ E_i * ρ * E_i' ---
+    ρ_new = (kraus[1] * ρ) * kraus_dag[1]  # Allocate ρ_new
+    
+    # Add remaining terms
+    for i in eachindex(kraus)[2:end]
+      ρ_new = ρ_new + (kraus[i] * ρ) * kraus_dag[i]
     end
     
-    return ρ, evolution, temperatures
+    ρ = ρ_new
+
+    if save_cursor <= n_actual && k == sampling_times[save_cursor]
+      temperatures[save_cursor] = Measurements.temperature(ρ, ω)
+      evolution[save_cursor] = copy(ρ)
+      # Clean up tiny numerical noise that might ruin sparsity
+      dropzeros!(ρ) 
+      # Advance the cursor and wait for next target
+      save_cursor += 1
+    end
+  end
+  
+  return ρ, evolution, temperatures
 end
 
 function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps, io)
