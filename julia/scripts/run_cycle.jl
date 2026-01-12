@@ -61,11 +61,19 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, load=fal
         collisions = config.time.isochore
         ρ, evolution, temperatures = thermalization_stroke(
             ρ0, kraus, kraus_dag, collisions, config.samplings.isochore, ω0)
-        plot(temperatures)
+
+    if verbose
+      g = plot(temperatures)
+      savefig(g, "img/temperature_stroke_1.png")
+    end
+
+    final_t = Phaseonium.Measurements.temperature(ρ, ω0)
+    println("Final temperature of the state: $final_t")
     end
 
     return ρ, evolution
 end
+
 
 function update_evolution!(
     evolution, state_evolution, cavity_evolution; 
@@ -75,11 +83,26 @@ function update_evolution!(
         initial_state = evolution.ρ
     end
     if isnothing(initial_cavity)
-        initial_cavity = evolution.c₁
+    initial_cavity = evolution.c₁.length
     end
-    prepend!(state_evolution, initial_state)
+  pushfirst!(state_evolution, initial_state)
     append!(evolution.ρ₁_evolution, state_evolution)
     # Add to the stroke state the evolution of the cavity length
     prepend!(cavity_evolution, initial_cavity)
     append!(evolution.c₁_evolution, cavity_evolution)
+  # Update the 'current' state of the system and cavity
+  evolution.ρ = state_evolution[end]
+  evolution.c₁.length = cavity_evolution[end]
+
+  return evolution
 end
+
+
+function save_evolution(evolution::StrokeState, step)
+  open("data/stepbystep_evolution/evolution_$(step-1)$(step).jl", "w") do f
+    serialize(f, evolution)
+  end
+  println("Evolution object saved in data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
+end
+
+
