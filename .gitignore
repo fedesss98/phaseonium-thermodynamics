@@ -1,6 +1,7 @@
 # Ignore folders with experiments
 cascade_*/
 simulations/
+data/
 
 visualization/
 *.png
