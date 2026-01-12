@@ -1,3 +1,29 @@
+using Serialization: serialize_array_data
+"""
+Suggested workflow:
+
+Created in init.jl and globally available:
+`config`::OneCavConfig = dict-like struct with configuration options from config.toml
+`evolution`::StrokeState = struct created in initialization with initial thermal ρ and cavity;
+`cavity`::Cavity = cavity struct containing all the cavity settings
+
+Run the evolution of the cavity state step by step throughout the cycle:
+## Cycle 0-1
+`ρ`, `ρ_evolution` = `thermalize_by_phaseonium(cavity, config, ρ0=evolution.ρ)`
+### Options
+ - use `load=true` to load the thermalized state from the path "data/stepbystep_evolution/state_1_thermalized.jl"
+ - use `verbose=true` to plot the temperature evolution and save it in "img" folder.
+
+## Save evolution
+`cavity_evolution` = `[cavity.length for _ in 1:length(ρ_evolution)]`
+`update_evolution!(evolution, ρ_evolution, cavity_evolution)`
+
+# Cycle 1-2
+
+
+"""
+
+
 include("./init.jl")
 
 function thermalize_by_phaseonium(cavity, config; ρ0=nothing, load=false)
