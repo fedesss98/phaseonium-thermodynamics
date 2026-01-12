@@ -6,6 +6,8 @@ module Measurements
 using LinearAlgebra
 using LaTeXStrings
 
+export temperature
+
 """
 Gives the temperature of one quantum thermal Gibbs state
 """

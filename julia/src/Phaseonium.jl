@@ -1,7 +1,7 @@
 
 module Phaseonium
 
-export Cavity, StrokeState, kraus_operators, create, destroy, thermalization_stroke
+export Cavity, StrokeState, kraus_operators, create, destroy, thermalization_stroke, temperature
 public bosonic_operators
 
 using DifferentialEquations
