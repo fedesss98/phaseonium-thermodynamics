@@ -91,6 +91,87 @@ function thermalization_stroke(ρ, kraus, kraus_dag, collisions, n_samplings, ω
   return ρ, evolution, temperatures
 end
 
+
+"""
+  adiabatic_stroke(avg_n; l0, v0, target_l, cavity, external_force, n_samplings, max_time=1e4)
+
+Evolve the cavity length under the radiation pressure force and external force.
+The evolution is solved as an Ordinary Differential Equation, supposing the state remains constant during the adiabatic stroke 
+(no dissipation, constant number of photons)
+# Args
+ - `avg_n`: expectation value of the Number Operator for the current state of the field
+ - `l0`: initial length of the cavity
+ - `v0`: initial velocity of the cavity (usually starting still)
+ - `target_l`: final length of the cavity
+ - `cavity`: cavity object with all its parameters
+ - `external_force`: external force on the cavity wall
+ - `n_samplings`: number of times in which to sample the evolution of the cavity
+ - `max_time`: maximum time for the computation of the solution of the ODE. Must be greater than the time needed to reach the target lenght
+"""
+function adiabatic_stroke(
+  avg_n; 
+  l0, v0, target_l, cavity, external_force, n_samplings, max_time=1e4)
+
+  function piston_dynamics!(du, u, args, t)
+      L = u[1]
+      v = u[2]
+      avg_n = args[1]
+      F_ext = args[2]
+      α = args[3]
+      m = args[4]
+      γ_damping = args[5]
+
+      # Radiation Force Definition
+      # F = -dE/dL = (ħ * α / L^2) * (<n> + 1/2)
+      # The +0.5 is the vacuum energy contribution explicitly kept in Tejero [cite: 68]
+      F_rad = (α0 / L^2) * (avg_n + 0.5)
+      
+      # Net Force
+      F_net = F_rad - F_ext - γ_damping * v
+
+      du[1] = v
+      du[2] = F_net / m
+  end
+
+  # B. The Termination Condition (Callback)
+  # This function triggers when it returns 0. 
+  # We want it to trigger when L(t) - L_target = 0.
+  condition(u, t, integrator) = u[1] - target_l
+
+  # What to do when triggered: Stop the integrator
+  affect!(integrator) = terminate!(integrator)
+
+  # Create the callback
+  # "continuous" means the solver will interpolate to find the EXACT time L hits L_max
+  cb = ContinuousCallback(condition, affect!)
+
+  # Initial state vector for ODE [L, v]
+  u0 = [l0, v0]
+
+  # Time span (Make it large enough to ensure we reach L_max, the callback will stop it early)
+  t_span = (0.0, max_time)
+
+  α0 = cavity.α
+  surface = cavity.surface
+  args = [avg_n, external_force, α0, cavity.mass, cavity.γ]
+  # Define the problem
+  prob = ODEProblem(piston_dynamics!, u0, t_span, args)
+
+  # Solve with the callback
+  sol = solve(prob, Tsit5(), callback=cb, reltol=1e-8, abstol=1e-8)
+
+  # Reconstruct the evolution of the cavity
+  # Do not save initial values at t0
+  t_grid = range(sol.t[2], sol.t[end], length=n_samplings)
+  sampled_solutions = sol(t_grid)
+  cavity_evolution = [u[1] for u in sampled_solutions]
+  time_steps = collect(t_grid)
+
+  return time_steps, cavity_evolution
+
+end
+
+
 function _phaseonium_stroke(state::StrokeState, ndims, time, bosonic, ga, gb, samplingssteps, io)
     if state.c₂ === nothing
         # Single system evolution
