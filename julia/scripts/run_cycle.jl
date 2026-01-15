@@ -60,20 +60,6 @@ end
 
 include("./init.jl")
 
-function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, load=false, verbose=false)
-  if load
-    if process == "heating"
-      step = 1
-    elseif process == "cooling"
-      step = 3
-    end
-    evolution = deserialize("data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
-    ρ = evolution.ρ
-  else
-    ω0 = cavity.α / cavity.length
-    if isnothing(ρ0)
-      ρ0 = thermalstate(config.dims, ω0, config.T_initial)
-    end
 
 function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, verbose=false)
   # Initialize variables for current step
@@ -207,11 +193,12 @@ function update_evolution!(
 end
 
 
-function save_evolution(evolution::StrokeState, step)
-  open("data/stepbystep_evolution/evolution_$(step-1)$(step).jl", "w") do f
+function save_evolution(evolution::StrokeState, step, cycle=1)
+  fname = "data/stepbystep_evolution/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
+  open(fname, "w") do f
     serialize(f, evolution)
   end
-  println("Evolution object saved in data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
+  println("Evolution object saved in $fname")
 end
 
 
