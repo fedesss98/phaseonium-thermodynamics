@@ -202,3 +202,99 @@ function save_evolution(evolution::StrokeState, step, cycle=1)
 end
 
 
+function load_evolution(step)
+  evolution = deserialize("data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
+  return evolution
+end
+
+
+"""
+  reset_evolution(evolution::StrokeState)
+
+Reset the evolution of the system keeping the only the starting state and the cavity.
+"""
+function reset_evolution!(evolution::StrokeState)
+  T = promote_type(eltype(evolution.ρ), ComplexF64)
+  evolution.ρ₁_evolution = Vector{Matrix{T}}()
+  evolution.c₁_evolution = Float64[]
+  evolution.time = Float64[]
+end
+
+
+function plot_evolution(evolution)
+  temperatures = Float64[]
+  entropies = Float64[]
+  α0 = evolution.c₁.α
+
+  for i in 1:length(evolution.time)
+    l_cavity = evolution.c₁_evolution[i]
+    state = evolution.ρ₁_evolution[i]
+    temperature = Phaseonium.Measurements.temperature(state, α0 / l_cavity)
+    entropy = Phaseonium.Measurements.entropy_vn(state)
+
+    append!(temperatures, temperature)
+    append!(entropies, entropy)
+  end
+
+  p1 = plot(evolution.time, ylabel="Evolution Time")
+  p2 = plot(entropies, temperatures, xlabel="Entropy", ylabel="Temperature")
+  p3 = plot(evolution.time, temperatures, xlabel="Time", ylabel="Temperature")
+  p4 = plot(evolution.time, entropies, xlabel="Time", ylabel="Entropy")
+  p = plot(p1, p2, p3, p4, layout=(4, 1), size=(600, 900))
+  savefig(p, "img/cycle.png")
+end
+
+
+function cycle(config, n_cycles=1; ρ0=nothing, verbose=false, reload_from_step=0)
+  cavity = create_cavity(config.cavity)
+
+  if reload_from_step > 0
+    evolution = load_evolution(reload_from_step)
+  else
+    if isnothing(ρ0)
+      ρ0 = thermalstate(config.dims, cavity.α / cavity.length, config.T_initial)
+    end
+    evolution = StrokeState(
+      ρ0, cavity
+    )
+    time = 0.0
+    append!(evolution.time, time)
+  end
+
+  # Utility function to correctly route strokes functions
+  function _route_process(process, state, cavity, config, verbose)
+    if in(process, ["heating", "cooling"])
+      revo, cevo, time = thermalize_by_phaseonium(process, cavity, config, ρ0=state, verbose=verbose)
+    elseif in(process, ["expansion", "compression"])
+      revo, cevo, time = move_by_pressure(process, cavity, config, ρ0=state, verbose=verbose)
+    end
+    return revo, cevo, time
+  end
+
+  for cycle_i in 1:n_cycles
+    println("\n=== CYCLE $cycle_i ===\n")
+    for (step, process) in enumerate(["heating", "expansion", "cooling", "compression"])
+      if step <= reload_from_step
+        continue
+      end
+
+      s_evolution, c_evolution, time = _route_process(process, evolution.ρ, cavity, config, verbose)
+      time = [evolution.time[end] + t for t in time]
+
+      update_evolution!(evolution, s_evolution, c_evolution, time)
+      save_evolution(evolution, step, cycle_i)
+    end
+  end
+
+  if verbose
+    plot_evolution(evolution)
+  end
+
+  return evolution
+
+end
+
+
+# Warmup the thermalization loop
+println("Warming up...")
+_ = thermalize_by_phaseonium("heating", cavity, fast_config);
