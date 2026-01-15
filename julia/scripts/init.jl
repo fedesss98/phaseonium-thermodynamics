@@ -131,3 +131,5 @@ evolution = StrokeState(
   thermalstate(config.dims, cavity.α / cavity.length, config.T_initial),
   cavity
 )
+time = 0
+append!(evolution.time, time)
