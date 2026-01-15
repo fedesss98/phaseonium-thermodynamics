@@ -22,9 +22,9 @@ include("../src/RoutineFunctions.jl")
   l_max::Float64
   surface::Float64
   acceleration::Float64
-  expanding_foce::Float64
+  expanding_force::Float64
   compressing_force::Float64
-  friction::Float64 = 0
+  friction::Float64 = 0.0
   mass::Float64
 
   function CavityConfig(config_dict::Dict)
@@ -115,7 +115,8 @@ function create_cavity(config)
   return Cavity(config.mass, config.surface,
     config.l_min, config.l_max,
     config.α, config.friction,
-    config.expanding_foce, config.compressing_force)
+    config.expanding_force, config.compressing_force)
+end
 end
 
 
