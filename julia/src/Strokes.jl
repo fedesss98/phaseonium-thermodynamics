@@ -1,6 +1,8 @@
 module Strokes
 
-export StrokeState, thermalization_stroke
+using DifferentialEquations
+
+export StrokeState, thermalization_stroke, adiabatic_stroke
 
 using ..OpticalCavity
 using ..Measurements
@@ -16,13 +18,14 @@ mutable struct StrokeState{T<:Complex}
     ρ₂_evolution::Vector{Matrix{T}}
     c₁_evolution::Vector{Float64}
     c₂_evolution::Vector{Float64}
+    time::Vector{Float64}
 
     # Two-cavity constructor
     function StrokeState(ρ::Matrix{T}, c1::Cavity, c2::Cavity) where {T<:Complex}
         new{T}(
             ρ, c1, c2,
             Vector{Matrix{T}}(), Vector{Matrix{T}}(),
-            Float64[], Float64[]
+            Float64[], Float64[], Float64[]
         )
     end
 
@@ -33,7 +36,7 @@ mutable struct StrokeState{T<:Complex}
         new{T}(
             ρ_dense, c1, nothing,
             Vector{Matrix{T}}(), Vector{Matrix{T}}(),
-            Float64[], Float64[]
+            Float64[], Float64[], Float64[]
         )
     end
 end
