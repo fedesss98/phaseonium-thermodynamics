@@ -117,6 +117,10 @@ function create_cavity(config)
     config.α, config.friction,
     config.expanding_force, config.compressing_force)
 end
+
+
+function get_omega(cavity)
+  return cavity.α / cavity.length
 end
 
 
