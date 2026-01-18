@@ -193,8 +193,9 @@ function update_evolution!(
 end
 
 
-function save_evolution(evolution::StrokeState, step, cycle=1)
-  fname = "data/stepbystep_evolution/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
+function save_evolution(config, evolution::StrokeState, step, cycle=1)
+  experiment = config.name
+  fname = "data/$experiment/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
   open(fname, "w") do f
     serialize(f, evolution)
   end
@@ -202,8 +203,10 @@ function save_evolution(evolution::StrokeState, step, cycle=1)
 end
 
 
-function load_evolution(step)
-  evolution = deserialize("data/stepbystep_evolution/evolution_$(step-1)$(step).jl")
+function load_evolution(config, step, cycle=1)
+  experiment = config.name
+  fname = "data/$experiment/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
+  evolution = deserialize(fname)
   return evolution
 end
 
@@ -245,8 +248,7 @@ function plot_evolution(evolution)
 end
 
 
-function cycle(config, n_cycles=1; ρ0=nothing, verbose=false, reload_from_step=0)
-  cavity = create_cavity(config.cavity)
+function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, reload_from_step=0)
 
   if reload_from_step > 0
     evolution = load_evolution(reload_from_step)
@@ -254,6 +256,10 @@ function cycle(config, n_cycles=1; ρ0=nothing, verbose=false, reload_from_step=
     if isnothing(ρ0)
       ρ0 = thermalstate(config.dims, cavity.α / cavity.length, config.T_initial)
     end
+    if isnothing(cavity)
+      cavity = create_cavity(config.cavity)
+    end
+
     evolution = StrokeState(
       ρ0, cavity
     )
