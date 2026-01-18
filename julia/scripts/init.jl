@@ -125,11 +125,14 @@ end
 
 
 config = read_configuration()
+experiment = config.name
+mkdir("data/$experiment")
+println("Experiment $experiment initialized.")
 fast_config = read_configuration("fast_config.toml")
 cavity = create_cavity(config.cavity)
 evolution = StrokeState(
   thermalstate(config.dims, cavity.α / cavity.length, config.T_initial),
   cavity
 )
-time = 0
+time = 0.0
 append!(evolution.time, time)
