@@ -57,7 +57,7 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, verbose=
   kraus_dag = [k' for k in kraus]
 
   if verbose
-    println("--- $step) Isochoric Thermalization ---")
+    println("\n--- $step) Isochoric Thermalization ---")
     println("Initial Temperature: $(Phaseonium.Measurements.temperature(ρ0, ω0))")
     println("Target Temperature: $temp")
     # Check that the Sparse Arrays are usable in this case
@@ -107,7 +107,7 @@ function move_by_pressure(process, cavity, config; ρ0=nothing, verbose=false)
   avg_n = real(Phaseonium.Measurements.avg_number(ρ0, ω))
 
   if verbose
-    println("--- $step) Adiabatic $(uppercasefirst(process)) ---")
+    println("\n--- $step) Adiabatic $(uppercasefirst(process)) ---")
     println("Initial Length: $l0")
     println("Target Max Length: $target_l")
     println("Conserved <n>: $avg_n")
