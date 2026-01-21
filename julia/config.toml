@@ -1,13 +1,13 @@
 # Configuration File
 
 [meta]
-name = "2_ode_adiabatic_friction"
+name = "pippo2026"
 description = """"""
 dims = 500
 omega = 1.0
 dt = 0.01
 cycles = 3
-T1_initial = 0.005
+T1_initial = 0.01
 T2_initial = 0.0
 
 [variables]
@@ -16,9 +16,9 @@ force2 = 2.0
 
 [phaseonium]
 phi_hot = 1.8
-T_hot = 0.01
+T_hot = 0.015
 phi_cold = 6.0
-T_cold = 0.001
+T_cold = 0.008
 
 [cavity1]
 mass = 1000000000000000
@@ -28,8 +28,8 @@ max_length = 250.0
 alpha = 0.031415926535
 friction = 0.0
 acceleration = 0.0
-expanding_force = 1e-12
-compressing_force = 0.01
+expanding_force = 1e-10
+compressing_force = 0.001
 
 [cavity2]
 mass = 0.0
@@ -47,7 +47,7 @@ isochore = 10000000
 adiabatic = 2000
 
 [samplings]
-isochore = 100
+isochore = 50
 adiabatic = 50
 
 [loading]
