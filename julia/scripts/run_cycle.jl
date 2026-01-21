@@ -262,8 +262,26 @@ end
 
 function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, reload_from_step=0)
 
+  experiment = config.name
+
+  current_rho = nothing
+  current_time = 0.0
+  current_cavity = nothing
+  temperatures = Float64[]
+  entropies = Float64[]
+  times = Float64[]
+
   if reload_from_step > 0
-    evolution = load_evolution(reload_from_step)
+    # Load one saved state to resume calculation
+    evolution = load_evolution(reload_from_step, load_from=experiment)
+    # Extract only final states
+    current_rho = evolution.ρ
+    current_time = evolution.time[end]
+    current_cavity = evolution.c₁
+
+    # Clean up memory
+    evolution = nothing
+    GC.gc()
   else
     if isnothing(ρ0)
       ρ0 = thermalstate(config.dims, cavity.α / cavity.length, config.T_initial)
@@ -272,35 +290,63 @@ function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, r
       cavity = create_cavity(config.cavity)
     end
 
-    evolution = StrokeState(
-      ρ0, cavity
-    )
-    time = 0.0
-    append!(evolution.time, time)
+    current_rho = ρ0
+    current_time = 0.0
+    current_cavity = cavity
+
   end
 
   # Utility function to correctly route strokes functions
   function _route_process(process, state, cavity, config, verbose)
-    if in(process, ["heating", "cooling"])
+    if process in ["heating", "cooling"]
       revo, cevo, time = thermalize_by_phaseonium(process, cavity, config, ρ0=state, verbose=verbose)
-    elseif in(process, ["expansion", "compression"])
+    elseif process in ["expansion", "compression"]
       revo, cevo, time = move_by_pressure(process, cavity, config, ρ0=state, verbose=verbose)
     end
     return revo, cevo, time
   end
 
+  # === Main loop ===
+
+  processes = ["heating", "expansion", "cooling", "compression"]
+
+  total_steps = 1  # Total number of steps, considering cycles
   for cycle_i in 1:n_cycles
     println("\n=== CYCLE $cycle_i ===\n")
-    for (step, process) in enumerate(["heating", "expansion", "cooling", "compression"])
-      if step <= reload_from_step
+
+    for (step, process) in enumerate(processes)
+      if total_steps <= reload_from_step
         continue
       end
 
-      s_evolution, c_evolution, time = _route_process(process, evolution.ρ, cavity, config, verbose)
-      time = [evolution.time[end] + t for t in time]
+      s_evolution, c_evolution, time = _route_process(process, current_rho, current_cavity, config, verbose)
+      cavity.length = c_evolution[end]
+      time = [current_time + t for t in time]
 
-      update_evolution!(evolution, s_evolution, c_evolution, time)
-      save_evolution(evolution, step, cycle_i)
+      step_evolution = StrokeState(
+        s_evolution[end],
+        cavity
+      )
+      append!(step_evolution.ρ₁_evolution, s_evolution)
+      append!(step_evolution.c₁_evolution, c_evolution)
+      append!(step_evolution.time, time)
+      save_evolution(step_evolution, total_steps, save_in=experiment)
+      if verbose
+        append!(temperatures, [
+          Phaseonium.Measurements.temperature(rho, cavity.α / l)
+          for (rho, l) in zip(s_evolution, c_evolution)
+        ])
+        append!(entropies, [
+          Phaseonium.Measurements.entropy_vn(Matrix(rho))
+          for rho in s_evolution
+        ])
+        append!(times, time)
+      end
+      total_steps += 1
+
+      current_rho = s_evolution[end]
+      current_cavity = cavity
+      current_time = time[end]
     end
   end
 
@@ -308,7 +354,9 @@ function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, r
     plot_evolution(temperatures, entropies, times, save_in=experiment)
   end
 
-  return evolution
+  return current_rho, current_cavity, current_time, total_steps
+
+end
 
 
 function plot_saved_evolution(config; returns=false, from_cycle=1)
