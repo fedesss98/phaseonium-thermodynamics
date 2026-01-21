@@ -221,8 +221,42 @@ function plot_evolution(evolution; save_in=nothing, title="")
   p2 = plot(entropies, temperatures, xlabel="Entropy", ylabel="Temperature")
   p3 = plot(evolution.time, temperatures, xlabel="Time", ylabel="Temperature")
   p4 = plot(evolution.time, entropies, xlabel="Time", ylabel="Entropy")
-  p = plot(p1, p2, p3, p4, layout=(4, 1), size=(600, 900))
-  savefig(p, "img/cycle.png")
+  p = plot(
+    p1, p2, p3, p4,
+    layout=(4, 1), size=(600, 900),
+    plot_title=title
+  )
+  if !isnothing(save_in)
+    savefig(p, "img/$save_in/cycle.png")
+  end
+end
+
+
+function plot_evolution(temperatures, entropies, times; save_in=nothing, title="")
+
+  p1 = plot(times, ylabel="Evolution Time")
+  p2 = plot(entropies, temperatures, xlabel="Entropy", ylabel="Temperature")
+  # Add starting and ending points of the cycle
+  scatter!(p2, [entropies[1]], [temperatures[1]],
+    color=:green,
+    markershape=:circle,
+    markersize=6,
+    label="Start")
+  scatter!(p2, [entropies[end]], [temperatures[end]],
+    color=:red,
+    markershape=:rect,
+    markersize=6,
+    label="End")
+  p3 = plot(times, temperatures, xlabel="Time", ylabel="Temperature")
+  p4 = plot(times, entropies, xlabel="Time", ylabel="Entropy")
+  p = plot(
+    p1, p2, p3, p4,
+    layout=(4, 1), size=(600, 900),
+    plot_title=title
+  )
+  if !isnothing(save_in)
+    savefig(p, "img/$save_in/cycle.png")
+  end
 end
 
 
@@ -271,11 +305,34 @@ function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, r
   end
 
   if verbose
-    plot_evolution(evolution)
+    plot_evolution(temperatures, entropies, times, save_in=experiment)
   end
 
   return evolution
 
+
+function plot_saved_evolution(config; returns=false, from_cycle=1)
+  temperatures = Float64[]
+  entropies = Float64[]
+  lengths = Float64[]
+  times = Float64[]
+  α = cavity.α
+  for step in 1:4
+    evo = load_evolution(4 * (from_cycle - 1) + step, load_from=config.name)
+    # Skip the first element as it is equal to the last in previous step
+    step_temperatures = [
+      temperature(r, α / l) for (r, l) in zip(evo.ρ₁_evolution[2:end], evo.c₁_evolution[2:end])]
+    append!(temperatures, step_temperatures)
+    step_entropies = [entropy_vn(Matrix(r)) for r in evo.ρ₁_evolution[2:end]]
+    append!(entropies, step_entropies)
+    append!(lengths, [l for l in evo.c₁_evolution[2:end]])
+    append!(times, [t for t in evo.time])
+  end
+  plot_evolution(temperatures, entropies, times, save_in=config.name, title="T-S evolution from cycle $from_cycle")
+
+  if returns
+    return temperatures, lengths, entropies, times
+  end
 end
 
 
