@@ -153,8 +153,9 @@ mkpath("img/$experiment")
 println("Experiment $experiment initialized.")
 fast_config = read_configuration("fast_config.toml")
 cavity = create_cavity(config.cavity)
+ρ0 = thermalstate(config.dims, cavity.α / cavity.length, config.T_initial)
 evolution = StrokeState(
-  thermalstate(config.dims, cavity.α / cavity.length, config.T_initial),
+  ρ0,
   cavity
 )
 time = 0.0
