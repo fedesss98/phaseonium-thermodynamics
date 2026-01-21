@@ -6,7 +6,7 @@ module Measurements
 using LinearAlgebra
 using LaTeXStrings
 
-export temperature
+export temperature, entropy_vn
 
 """
 Gives the temperature of one quantum thermal Gibbs state
