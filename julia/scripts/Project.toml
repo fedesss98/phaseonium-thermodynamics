@@ -1,4 +1,5 @@
 [deps]
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 Configurations = "5218b696-f38b-4ac9-8b61-a12ec717816d"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Phaseonium = "5a3a09c7-1bd2-40b5-b94f-2570b388f795"

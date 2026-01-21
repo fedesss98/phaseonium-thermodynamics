@@ -3,6 +3,7 @@ using Phaseonium
 #using DataFrames
 using TOML
 using Configurations
+using Accessors  # Used to create new configs: new_config = @set config.cavity.α = 2.5
 using Serialization
 using SparseArrays
 
@@ -16,7 +17,8 @@ using LaTeXStrings
 
 include("../src/RoutineFunctions.jl")
 
-@option struct CavityConfig
+
+Base.@kwdef struct CavityConfig
   α::Float64
   l_min::Float64
   l_max::Float64
@@ -26,88 +28,108 @@ include("../src/RoutineFunctions.jl")
   compressing_force::Float64
   friction::Float64 = 0.0
   mass::Float64
-
-  function CavityConfig(config_dict::Dict)
-    new(
-      config_dict["alpha"],
-      config_dict["min_length"],
-      config_dict["max_length"],
-      config_dict["surface"],
-      config_dict["acceleration"],
-      config_dict["expanding_force"],
-      config_dict["compressing_force"],
-      config_dict["friction"],
-      config_dict["mass"],
-    )
-  end
 end
 
-@option struct PhaseonimConfig
+Base.@kwdef struct PhaseoniumConfig
   ϕ_c::Float64
   T_cold::Float64
   ϕ_h::Float64
   T_hot::Float64
-  function PhaseonimConfig(config_dict::Dict)
-    new(
-      config_dict["phi_cold"],
-      config_dict["T_cold"],
-      config_dict["phi_hot"],
-      config_dict["T_hot"],
-    )
-  end
 end
 
-@option struct StrokeTimeConfig
+Base.@kwdef struct StrokeTimeConfig
   isochore::Int
   adiabatic::Int
 end
 
-
-@option struct SamplingsConfig
+Base.@kwdef struct SamplingsConfig
   isochore::Int
   adiabatic::Int
 end
 
-
-@option struct ReloadConfig
+Base.@kwdef struct ReloadConfig
   load_state::Bool
-  filename::String
-  past_cycles::Int
+  filename::String = ""
+  past_cycles::Int = 0
 end
 
-@option struct OneCavConfig
+# --- Main Struct ---
+
+Base.@kwdef struct OneCavConfig
+  # Fields flattened from [meta]
+  name::String
+  description::String
   dims::Int
   Ω::Float64
   Δt::Float64
   T_initial::Float64
+
+  # Nested structs
   cavity::CavityConfig
-  phaseonium::PhaseonimConfig
+  phaseonium::PhaseoniumConfig
   time::StrokeTimeConfig
   samplings::SamplingsConfig
   loading::ReloadConfig
-
-  function OneCavConfig(config_dict::Dict)
-    new(
-      config_dict["meta"]["dims"],
-      config_dict["meta"]["omega"],
-      config_dict["meta"]["dt"],
-      config_dict["meta"]["T1_initial"],
-      CavityConfig(config_dict["cavity1"]),
-      PhaseonimConfig(config_dict["phaseonium"]),
-      config_dict["stroke_time"],
-      config_dict["samplings"],
-      config_dict["loading"]
-    )
-  end
 end
 
-
 function read_configuration(config_file="config.toml")
-  config = TOML.parsefile(config_file)
+  # Parse raw TOML
+  d = TOML.parsefile(config_file)
 
-  config = OneCavConfig(config)
+  meta = d["meta"]
+  cav = d["cavity1"]
+  ph = d["phaseonium"]
+  st = d["stroke_time"]
+  sm = d["samplings"]
+  ld = d["loading"]
 
-  return config
+  cavity_config = CavityConfig(
+    α=cav["alpha"],
+    l_min=cav["min_length"],
+    l_max=cav["max_length"],
+    surface=cav["surface"],
+    acceleration=cav["acceleration"],
+    expanding_force=cav["expanding_force"],
+    compressing_force=cav["compressing_force"],
+    friction=get(cav, "friction", 0.0),
+    mass=cav["mass"]
+  )
+
+  phaseonium_config = PhaseoniumConfig(
+    ϕ_c=ph["phi_cold"],
+    T_cold=ph["T_cold"],
+    ϕ_h=ph["phi_hot"],
+    T_hot=ph["T_hot"]
+  )
+
+  stroke_time_config = StrokeTimeConfig(
+    isochore=st["isochore"],
+    adiabatic=st["adiabatic"]
+  )
+
+  samplings_config = SamplingsConfig(
+    isochore=sm["isochore"],
+    adiabatic=sm["adiabatic"]
+  )
+
+  reload_config = ReloadConfig(
+    load_state=ld["load_state"],
+    filename=get(ld, "filename", ""),
+    past_cycles=get(ld, "past_cycles", 0)
+  )
+
+  return OneCavConfig(
+    name=get(meta, "name", ""),
+    description=get(meta, "description", ""),
+    dims=meta["dims"],
+    Ω=meta["omega"],
+    Δt=meta["dt"],
+    T_initial=meta["T1_initial"], cavity=cavity_config,
+    phaseonium=phaseonium_config,
+    time=stroke_time_config,
+    samplings=samplings_config,
+    loading=reload_config
+  )
 end
 
 
@@ -126,7 +148,8 @@ end
 
 config = read_configuration()
 experiment = config.name
-mkdir("data/$experiment")
+mkpath("data/$experiment")
+mkpath("img/$experiment")
 println("Experiment $experiment initialized.")
 fast_config = read_configuration("fast_config.toml")
 cavity = create_cavity(config.cavity)
