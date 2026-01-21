@@ -64,7 +64,7 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, verbose=
     println("Sparsity in the starting state:")
     println(count(==(0), ρ0) / length(ρ0))
   end
-  ρ0 = sparse(ρ0)
+  #ρ0 = sparse(ρ0)
 
   collisions = config.time.isochore
   ρ, evolution, temperatures = thermalization_stroke(
@@ -72,7 +72,7 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, verbose=
 
   if verbose
     g = plot(temperatures)
-    savefig(g, "img/temperature_stroke_1.png")
+    savefig(g, "img/temperature_stroke_$step.png")
   end
 
   final_t = Phaseonium.Measurements.temperature(ρ, ω0)
@@ -110,7 +110,6 @@ function move_by_pressure(process, cavity, config; ρ0=nothing, verbose=false)
     println("\n--- $step) Adiabatic $(uppercasefirst(process)) ---")
     println("Initial Length: $l0")
     println("Target Max Length: $target_l")
-    println("Conserved <n>: $avg_n")
   end
 
   time_steps, cavity_evolution = adiabatic_stroke(
@@ -125,8 +124,8 @@ function move_by_pressure(process, cavity, config; ρ0=nothing, verbose=false)
   )
 
   if verbose
-    println("Simulation finished. Final time: $(time_steps[end])")
     println("Final Length: $(cavity_evolution[end])")
+    println("Final time: $(time_steps[end])")
 
     p_evolution = [(cavity.α * (avg_n + 0.5)) / (cavity.surface * l^2) for l in cavity_evolution]
     g1 = plot(time_steps, cavity_evolution, label="Length", ylabel="Length", xlabel="Time")
@@ -202,7 +201,7 @@ function reset_evolution!(evolution::StrokeState)
 end
 
 
-function plot_evolution(evolution; save_in=nothing, title="")
+function plot_evolution(evolution; save_in=nothing, name=nothing, title="")
   temperatures = Float64[]
   entropies = Float64[]
   α0 = evolution.c₁.α
@@ -227,7 +226,10 @@ function plot_evolution(evolution; save_in=nothing, title="")
     plot_title=title
   )
   if !isnothing(save_in)
-    savefig(p, "img/$save_in/cycle.png")
+    if isnothing(name)
+      name = "cycle"
+    end
+    savefig(p, "img/$save_in/$name.png")
   end
 end
 

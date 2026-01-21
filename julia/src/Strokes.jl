@@ -82,7 +82,7 @@ function thermalization_stroke(ρ, kraus, kraus_dag, collisions, n_samplings, ω
       temperatures[save_cursor] = Measurements.temperature(ρ, ω)
       evolution[save_cursor] = copy(ρ)
       # Clean up tiny numerical noise that might ruin sparsity
-      dropzeros!(ρ) 
+      #dropzeros!(ρ) 
       # Advance the cursor and wait for next target
       save_cursor += 1
     end
