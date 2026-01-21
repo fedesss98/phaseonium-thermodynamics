@@ -165,9 +165,12 @@ function update_evolution!(
 end
 
 
-function save_evolution(config, evolution::StrokeState, step, cycle=1)
-  experiment = config.name
-  fname = "data/$experiment/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
+function save_evolution(evolution::StrokeState, step; save_in=nothing)
+  if isnothing(save_in)
+    fname = "data/evolution_step$(step-1)$(step).jl"
+  else
+    fname = "data/$(save_in)/evolution_step$(step-1)$(step).jl"
+  end
   open(fname, "w") do f
     serialize(f, evolution)
   end
@@ -175,9 +178,12 @@ function save_evolution(config, evolution::StrokeState, step, cycle=1)
 end
 
 
-function load_evolution(config, step, cycle=1)
-  experiment = config.name
-  fname = "data/$experiment/evolution_cycle$(cycle)_step$(step-1)$(step).jl"
+function load_evolution(step; load_from=nothing)
+  if isnothing(load_from)
+    fname = "data/evolution_step$(step-1)$(step).jl"
+  else
+    fname = "data/$load_from/evolution_step$(step-1)$(step).jl"
+  end
   evolution = deserialize(fname)
   return evolution
 end
@@ -196,7 +202,7 @@ function reset_evolution!(evolution::StrokeState)
 end
 
 
-function plot_evolution(evolution)
+function plot_evolution(evolution; save_in=nothing, title="")
   temperatures = Float64[]
   entropies = Float64[]
   α0 = evolution.c₁.α
