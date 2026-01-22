@@ -145,8 +145,9 @@ function get_omega(cavity)
   return cavity.α / cavity.length
 end
 
-
-config = read_configuration()
+println(ARGS[1])
+!isempty(ARGS) ? config_file = ARGS[1] : config_file = "config.toml"
+config = read_configuration(config_file)
 experiment = config.name
 mkpath("data/$experiment")
 mkpath("img/$experiment")
@@ -160,3 +161,4 @@ evolution = StrokeState(
 )
 time = 0.0
 append!(evolution.time, time)
+
