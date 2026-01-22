@@ -168,7 +168,7 @@ function save_evolution(evolution::StrokeState, step; save_in=nothing)
   if isnothing(save_in)
     fname = "data/evolution_step$(step-1)$(step).jl"
   else
-    fname = "data/$(save_in)/evolution_step$(step-1)$(step).jl"
+    fname = "data/$save_in/evolution_step$(step-1)$(step).jl"
   end
   open(fname, "w") do f
     serialize(f, evolution)
@@ -201,40 +201,7 @@ function reset_evolution!(evolution::StrokeState)
 end
 
 
-function plot_evolution(evolution; save_in=nothing, name=nothing, title="")
-  temperatures = Float64[]
-  entropies = Float64[]
-  α0 = evolution.c₁.α
-
-  for i in 1:length(evolution.time)
-    l_cavity = evolution.c₁_evolution[i]
-    state = evolution.ρ₁_evolution[i]
-    temperature = Phaseonium.Measurements.temperature(state, α0 / l_cavity)
-    entropy = Phaseonium.Measurements.entropy_vn(state)
-
-    append!(temperatures, temperature)
-    append!(entropies, entropy)
-  end
-
-  p1 = plot(evolution.time, ylabel="Evolution Time")
-  p2 = plot(entropies, temperatures, xlabel="Entropy", ylabel="Temperature")
-  p3 = plot(evolution.time, temperatures, xlabel="Time", ylabel="Temperature")
-  p4 = plot(evolution.time, entropies, xlabel="Time", ylabel="Entropy")
-  p = plot(
-    p1, p2, p3, p4,
-    layout=(4, 1), size=(600, 900),
-    plot_title=title
-  )
-  if !isnothing(save_in)
-    if isnothing(name)
-      name = "cycle"
-    end
-    savefig(p, "img/$save_in/$name.png")
-  end
-end
-
-
-function plot_evolution(temperatures, entropies, times; save_in=nothing, title="")
+function plot_evolution(temperatures, entropies, times; save_in=nothing, name="cycle", title="")
 
   p1 = plot(times, ylabel="Evolution Time")
   p2 = plot(entropies, temperatures, xlabel="Entropy", ylabel="Temperature")
@@ -259,6 +226,18 @@ function plot_evolution(temperatures, entropies, times; save_in=nothing, title="
   if !isnothing(save_in)
     savefig(p, "img/$save_in/cycle.png")
   end
+end
+
+
+function plot_evolution(evolution; kwargs...)
+  α0 = evolution.c₁.α
+
+  temperatures = Phaseonium.Measurements.temperature.(
+    evolution.ρ₁_evolution, α0 ./ evolution.c₁_evolution)
+  entropies = Phaseonium.Measurements.entropy_vn.(
+    evolution.ρ₁_evolution)
+
+  plot_evolution(temperatures, entropies, evolution.time; kwargs...)
 end
 
 
