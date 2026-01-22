@@ -224,7 +224,7 @@ function plot_evolution(temperatures, entropies, times; save_in=nothing, name="c
     plot_title=title
   )
   if !isnothing(save_in)
-    savefig(p, "img/$save_in/cycle.png")
+    savefig(p, "img/$save_in/$name.png")
   end
 end
 
