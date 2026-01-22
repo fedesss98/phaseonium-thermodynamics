@@ -8,6 +8,7 @@ using ..OpticalCavity
 using ..Measurements
 using ProgressMeter
 using SparseArrays
+using LinearAlgebra
 
 
 mutable struct StrokeState{T<:Complex}
@@ -65,18 +66,26 @@ function thermalization_stroke(ρ, kraus, kraus_dag, collisions, n_samplings, ω
   temperatures = Vector{Float64}(undef, n_actual)
   evolution = Vector{typeof(ρ)}(undef, n_actual)
   save_cursor = 1
+
+  ρ_next = similar(ρ)
+  buffer = similar(ρ)
   
   @showprogress for k in 1:collisions
       
     # --- KRAUS MAP: ρ_new = Σ E_i * ρ * E_i' ---
-    ρ_new = (kraus[1] * ρ) * kraus_dag[1]  # Allocate ρ_new
+    # Reset the accumulator with the first term of the sum
+    mul!(buffer, kraus[1], ρ)
+    mul!(ρ_next, buffer, kraus_dag[1])
     
     # Add remaining terms
-    for i in eachindex(kraus)[2:end]
-      ρ_new = ρ_new + (kraus[i] * ρ) * kraus_dag[i]
+    for i in 2:length(kraus)
+      mul!(buffer, kraus[i], ρ)
+      # The 5-args mul!(C, A, B, a, b) computes C = aAB + bC
+      mul!(ρ_next, buffer, kraus_dag[i], 1, 1)
     end
     
-    ρ = ρ_new
+    # Swap pointers
+    ρ, ρ_next = ρ_next, ρ
 
     if save_cursor <= n_actual && k == sampling_times[save_cursor]
       temperatures[save_cursor] = Measurements.temperature(ρ, ω)

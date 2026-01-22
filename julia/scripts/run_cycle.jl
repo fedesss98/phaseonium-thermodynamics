@@ -47,7 +47,7 @@ function thermalize_by_phaseonium(process, cavity, config; ρ0=nothing, verbose=
 
   ω0 = cavity.α / cavity.length
   if isnothing(ρ0)
-    ρ0 = thermalstate(config.dims, ω0, config.T_initial)
+    ρ0 = Matrix(thermalstate(config.dims, ω0, config.T_initial))
   end
 
   α = alpha_from_temperature(temp, ϕ, ω0)
