@@ -345,10 +345,9 @@ function plot_saved_evolution(config; returns=false, from_cycle=1)
   for step in 1:4
     evo = load_evolution(4 * (from_cycle - 1) + step, load_from=config.name)
     # Skip the first element as it is equal to the last in previous step
-    step_temperatures = [
-      temperature(r, α / l) for (r, l) in zip(evo.ρ₁_evolution[2:end], evo.c₁_evolution[2:end])]
+    step_temperatures = temperature.(evo.ρ₁_evolution[2:end], α ./ evo.c₁_evolution[2:end])
     append!(temperatures, step_temperatures)
-    step_entropies = [entropy_vn(Matrix(r)) for r in evo.ρ₁_evolution[2:end]]
+    step_entropies = entropy_vn.(evo.ρ₁_evolution[2:end])
     append!(entropies, step_entropies)
     append!(lengths, [l for l in evo.c₁_evolution[2:end]])
     append!(times, [t for t in evo.time])
