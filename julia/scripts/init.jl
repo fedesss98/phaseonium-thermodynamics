@@ -63,6 +63,7 @@ Base.@kwdef struct OneCavConfig
   Ω::Float64
   Δt::Float64
   T_initial::Float64
+  cycles::Int
 
   # Nested structs
   cavity::CavityConfig
@@ -124,7 +125,9 @@ function read_configuration(config_file="config.toml")
     dims=meta["dims"],
     Ω=meta["omega"],
     Δt=meta["dt"],
-    T_initial=meta["T1_initial"], cavity=cavity_config,
+    T_initial=meta["T1_initial"],
+    cycles=meta["cycles"],
+    cavity=cavity_config,
     phaseonium=phaseonium_config,
     time=stroke_time_config,
     samplings=samplings_config,
