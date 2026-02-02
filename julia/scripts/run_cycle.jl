@@ -313,14 +313,10 @@ function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, r
       append!(step_evolution.time, time)
       save_evolution(step_evolution, total_steps, save_in=experiment)
       if verbose
-        append!(temperatures, [
-          Phaseonium.Measurements.temperature(rho, cavity.α / l)
-          for (rho, l) in zip(s_evolution, c_evolution)
-        ])
-        append!(entropies, [
-          Phaseonium.Measurements.entropy_vn(Matrix(rho))
-          for rho in s_evolution
-        ])
+        append!(temperatures, Phaseonium.Measurements.temperature.(
+          step_evolution.ρ₁_evolution, α0 ./ step_evolution.c₁_evolution))
+        append!(entropies, Phaseonium.Measurements.entropy_vn.(
+          step_evolution.ρ₁_evolution))
         append!(times, time)
       end
       total_steps += 1
