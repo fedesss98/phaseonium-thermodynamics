@@ -251,6 +251,7 @@ function cycle(config, n_cycles=1; cavity=nothing, ρ0=nothing, verbose=false, r
   temperatures = Float64[]
   entropies = Float64[]
   times = Float64[]
+  α0 = cavity.α
 
   if reload_from_step > 0
     # Load one saved state to resume calculation

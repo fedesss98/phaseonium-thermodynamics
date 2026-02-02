@@ -1,9 +1,9 @@
 # Configuration File
 
 [meta]
-name = "pippo2026"
+name = "final"
 description = """"""
-dims = 500
+dims = 860
 omega = 1.0
 dt = 0.01
 cycles = 3
@@ -43,7 +43,7 @@ expanding_force = 2.0
 compressing_force = 2.0
 
 [stroke_time]
-isochore = 10000000
+isochore = 13000000
 adiabatic = 2000
 
 [samplings]
